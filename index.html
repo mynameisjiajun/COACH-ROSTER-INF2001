@@ -217,6 +217,7 @@ table.rt{width:100%;border-collapse:collapse;font-size:14px}
 .switch{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:8px 0;border-top:1px solid var(--line);font-size:14px}
 .switch input{width:20px;height:20px;accent-color:var(--amber);flex:none}
 .try{margin:0;padding-left:18px;font-size:14px;display:grid;gap:4px}
+#scq{min-height:44px;font-size:15px}
 .scg{border:1px solid var(--line);border-radius:10px;background:var(--surface)}
 .scg summary{padding:10px 12px;font-weight:600;cursor:pointer}
 .scl{display:grid;padding:0 6px 6px}
@@ -427,6 +428,7 @@ const IC={
  flask:'<path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3"/>',
  x:'<path d="M6 6l12 12M18 6L6 18"/>',
  plus:'<path d="M12 5v14M5 12h14"/>',
+ search:'<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>',
 };
 function icon(n,c=''){return `<svg class="ic ${c}" viewBox="0 0 24 24" aria-hidden="true">${IC[n]}</svg>`}
 const brandHtml=`<div class="brand"><span class="brand-mark">${icon('bus','sm')}</span>CoachRoster</div>`;
@@ -910,24 +912,38 @@ function renderModal(){
 }
 
 /* ---------- test tools ---------- */
+function normTag(t){const m=String(t).toLowerCase().replace(/\s+/g,'').match(/^(nfr|fr|uc)-?0*(\d+)$/);return m?m[1]+'-'+(+m[2]):null}
+function scnMatch(x,q){const tags=[...x.r,x.g.split(' ')[0]].map(normTag).filter(Boolean),hay=`${x.g} ${x.s} ${x.r.join(' ')} ${x.t} ${x.e}`.toLowerCase();
+  return q.toLowerCase().replace(/\b(nfr|fr|uc)\s+(\d+)/g,'$1-$2').split(/[\s,]+/).filter(Boolean).every(tok=>{const nt=normTag(tok);return nt?tags.includes(nt):hay.includes(tok)})}
+function scnItem(x,i,showG){return `<button class="scn-item ${S.ui.scn===i?'on':''}" data-act="scn" data-i="${i}"><span class="mono">${i+1}</span><span><b>${x.s}</b> · ${x.t}${x.r.map(y=>`<span class="frtag">${y}</span>`).join('')}${showG?`<br><span class="muted small">${x.g}</span>`:''}</span></button>`}
+function scnList(){
+  const q=(S.ui.scq||'').trim();
+  if(!q)return [...new Set(SCN.map(x=>x.g))].map(g=>`<details class="scg" ${SCN.findIndex(x=>x.g===g)<=(S.ui.scn??-1)&&SCN.findLastIndex(x=>x.g===g)>=(S.ui.scn??-1)?'open':''}><summary>${g} <span class="muted small">(${SCN.filter(x=>x.g===g).length})</span></summary><div class="scl">${SCN.map((x,i)=>x.g===g?scnItem(x,i,false):'').join('')}</div></details>`).join('');
+  const hits=SCN.map((x,i)=>[x,i]).filter(([x])=>scnMatch(x,q));
+  return `<p class="muted small">${hits.length} match${hits.length===1?'':'es'} for "${esc(q)}"</p>`+(hits.length?`<div class="scg"><div class="scl" style="padding-top:6px">${hits.map(([x,i])=>scnItem(x,i,true)).join('')}</div></div>`:'<p class="muted small">Nothing matches. Try FR-13, NFR-09, UC-06, 6a, or a word like driving.</p>');
+}
 function renderTest(){
   const root=$('#test-root'),unread=S.inbox.filter(m=>!m.seen).length;
   const fab=`<button class="fab ${S.session?'raised':''}" data-act="drawer" aria-label="Test tools">${icon('flask')}<span>Test tools</span>${unread?`<b class="badge">${unread}</b>`:''}</button>`;
   const sc=S.ui.scn!=null&&SCN[S.ui.scn];
-  const bar=sc?`<div class="scnbar" role="region" aria-label="Presenter"><button class="iconbtn" data-act="scnStep" data-d="-1" aria-label="Previous scenario" ${S.ui.scn===0?'disabled':''}>‹</button><div class="txt"><span class="small"><span class="tag">${S.ui.scn+1} / ${SCN.length}</span><span class="lbl">${sc.g.split(' ')[0]} · ${sc.s}</span>${sc.r.map(x=>`<span class="frtag">${x}</span>`).join('')}</span><b>${sc.t}</b><span class="e">${sc.e}</span></div><button class="iconbtn" data-act="scnStep" data-d="1" aria-label="Next scenario" ${S.ui.scn===SCN.length-1?'disabled':''}>›</button><button class="iconbtn" data-act="scnStop" aria-label="Stop presenting">${icon('x','sm')}</button></div>`:'';
+  const bar=sc?`<div class="scnbar" role="region" aria-label="Presenter"><button class="iconbtn" data-act="scnStep" data-d="-1" aria-label="Previous scenario" ${S.ui.scn===0?'disabled':''}>‹</button><div class="txt"><span class="small"><span class="tag">${S.ui.scn+1} / ${SCN.length}</span><span class="lbl">${sc.g.split(' ')[0]} · ${sc.s}</span>${sc.r.map(x=>`<span class="frtag">${x}</span>`).join('')}</span><b>${sc.t}</b><span class="e">${sc.e}</span></div><button class="iconbtn" data-act="scnStep" data-d="1" aria-label="Next scenario" ${S.ui.scn===SCN.length-1?'disabled':''}>›</button><button class="iconbtn" data-act="scnFind" aria-label="Find a scenario" title="Find (/)">${icon('search','sm')}</button><button class="iconbtn" data-act="scnStop" aria-label="Stop presenting">${icon('x','sm')}</button></div>`:'';
   if(!S.ui.drawer){root.innerHTML=fab+bar;return}
   const sw=(k,l,d)=>`<label class="switch"><span><b>${l}</b><br><span class="muted small">${d}</span></span><input type="checkbox" data-change="testToggle" data-k="${k}" ${S.test[k]?'checked':''}></label>`;
   const mails=S.inbox.length?S.inbox.map(m=>`<div class="mail ${m.seen?'':'new'}"><button data-act="openMail" data-id="${m.id}"><b>${esc(m.subject)}</b><span class="muted small">To ${esc(m.to)} · ${esc(m.time)}</span></button>${S.ui.openMail===m.id?`<div class="mail-b"><p>${esc(m.body)}</p>${m.link?`<button class="btn sm primary" data-act="openLink" data-t="${m.link.token}">${m.link.type==='activate'?'Activate account':'Reset password'}</button><span class="muted small">Opening a link signs you out, like opening the email on another phone.</span>`:''}</div>`:''}</div>`).join(''):'<p class="muted small">No emails yet. Activation links, reset links and maintenance notices land here.</p>';
   root.innerHTML=fab+bar+`<div class="dback" data-act="drawer"></div><aside class="drawer" role="dialog" aria-label="Test tools">
   <div class="row" style="justify-content:space-between"><span class="row"><span class="tag">Test only</span><h3>Test tools</h3></span><button class="iconbtn" data-act="drawer" aria-label="Close test tools">${icon('x')}</button></div>
-  <p class="muted small">This panel is not part of the app. It lets testers see emails and force error cases.</p>
+  <p class="muted small">This panel is not part of the app. It lets testers see emails and force error cases. Press <b>/</b> anywhere to search.</p>
+  <section class="dsec"><h3>Find a scenario (${SCN.length})</h3>
+   <input id="scq" type="search" autocomplete="off" placeholder="FR-13, NFR-09, UC-06, 6a, driving…" value="${esc(S.ui.scq||'')}" data-input="scnSearch" aria-label="Search scenarios by FR, NFR, use case, step or word">
+   <div class="chips">${['FR-13','NFR-09','UC-06','Alt 6a','email'].map(x=>`<button type="button" class="chipbtn" data-act="scq" data-q="${x}">${x}</button>`).join('')}${S.ui.scq?'<button type="button" class="chipbtn" data-act="scq" data-q="">Clear</button>':''}</div>
+   <div id="scn-res">${scnList()}</div>
+   <button class="btn primary" data-act="scn" data-i="${S.ui.scn!=null?S.ui.scn:0}">${S.ui.scn!=null?'Back to presenting':'Present all from #1'}</button></section>
   <section class="dsec"><h3>Inbox (${S.inbox.length})</h3>${mails}</section>
-  <section class="dsec"><h3>Jump in as</h3><div class="row">${[['104233','Ahmad · Staff'],['200118','Rachel · Manager'],['300021','Kelvin · IT Admin']].map(x=>`<button class="btn sm" data-act="jump" data-uid="${x[0]}">${x[1]}</button>`).join('')}</div><span class="muted small">Skips the password and code. Use the real sign-in to test those.</span></section>
+  <section class="dsec"><h3>Jump in as</h3><div class="row">${[['104233','Ahmad · Staff'],['200118','Rachel · Manager'],['300021','Kelvin · IT Admin']].map(x=>`<button class="btn sm" data-act="jump" data-uid="${x[0]}">${x[1]}</button>`).join('')}</div><span class="muted small">Skips the password. Use the real sign-in to test it.</span></section>
   <section class="dsec"><h3>Force a situation</h3>${sw('afterDeadline','Availability deadline has passed','Moves the staff clock to Thu 5 Nov, 00:01.')}${sw('emailFail','Email server is down','Activation, reset and maintenance emails fail.')}${sw('publishFail','Database snapshot fails','Publishing stops with "Publish failed, please try again".')}${sw('serverFail','System errors when saving','Tickets, preferences, coach, decisions and account status fail to save. Tickets also fail to load.')}${sw('linkExpired','Email links have expired','Any link you open shows the expired page.')}</section>
   <section class="dsec"><h3>Actions</h3><div class="row"><button class="btn sm" data-act="timeout" ${S.session?'':'disabled'}>Session times out</button><button class="btn sm" data-act="autofill" ${S.roster.published?'disabled':''}>Fill all jobs (to test publish)</button><button class="btn sm danger" data-act="resetDemo">${S.ui.resetArm?'Click again to reset':'Reset all demo data'}</button></div></section>
-  <section class="dsec"><h3>Scenarios (${SCN.length})</h3><p class="muted small">Every use case step and alternate flow, labelled with its FR and NFR. Each one resets the demo data first.</p><button class="btn primary" data-act="scn" data-i="${S.ui.scn!=null?S.ui.scn:0}">${S.ui.scn!=null?'Back to presenting':'Present all scenarios from #1'}</button>
-  ${[...new Set(SCN.map(x=>x.g))].map(g=>`<details class="scg" ${SCN.findIndex(x=>x.g===g)<=(S.ui.scn??-1)&&SCN.findLastIndex(x=>x.g===g)>=(S.ui.scn??-1)?'open':''}><summary>${g} <span class="muted small">(${SCN.filter(x=>x.g===g).length})</span></summary><div class="scl">${SCN.map((x,i)=>x.g===g?`<button class="scn-item ${S.ui.scn===i?'on':''}" data-act="scn" data-i="${i}"><span class="mono">${i+1}</span><span><b>${x.s}</b> · ${x.t}${x.r.map(y=>`<span class="frtag">${y}</span>`).join('')}</span></button>`:'').join('')}</div></details>`).join('')}
-  </section></aside>`;
+  </aside>`;
+  const q=$('#scq');if(S.ui.focusFind&&q){q.focus();q.setSelectionRange(q.value.length,q.value.length);S.ui.focusFind=false}
 }
 
 /* ---------- actions ---------- */
@@ -1034,6 +1050,8 @@ const ACT={
   scn:el=>runScenario(+el.dataset.i),
   scnStep:el=>runScenario(S.ui.scn+(+el.dataset.d)),
   scnStop:()=>{S.ui.scn=null;renderTest()},
+  scnFind:()=>{S.ui.drawer=true;S.ui.focusFind=true;renderTest()},
+  scq:el=>{S.ui.scq=el.dataset.q;S.ui.focusFind=true;renderTest()},
 
   resetDemo:()=>{if(!S.ui.resetArm){S.ui.resetArm=true;renderTest();return}const t=S.test;S=seed();render();toast('Demo data reset.','info')},
 };
@@ -1168,6 +1186,7 @@ const CHANGES={
   testToggle:el=>{S.test[el.dataset.k]=el.checked;render();toast(`${el.checked?'On':'Off'}: ${el.closest('label').querySelector('b').textContent}.`,'info')},
 };
 const INPUTS={
+  scnSearch:el=>{S.ui.scq=el.value;$('#scn-res').innerHTML=scnList()},
   userSearch:el=>{S.ui.uq=el.value;$('#user-rows').innerHTML=userRows();save()},
   count:el=>{$('#count').textContent=`${el.value.length}/200`},
   pwRules:el=>{document.querySelectorAll('#rules li').forEach(li=>li.classList.toggle('ok',el.value.length>=12))},
@@ -1334,7 +1353,7 @@ const SCN=[
 ];
 function runScenario(i){
   if(i<0||i>=SCN.length)return;
-  const sc=SCN[i];S=seed();sc.go();S.ui.scn=i;S.ui.drawer=false;render();window.scrollTo(0,0);
+  const sc=SCN[i],keepQ=S.ui.scq;S=seed();S.ui.scq=keepQ;sc.go();S.ui.scn=i;S.ui.drawer=false;render();window.scrollTo(0,0);
   if(sc.then)setTimeout(()=>{sc.then();S.ui.scn=i;renderTest()},40);
 }
 
@@ -1350,7 +1369,7 @@ document.addEventListener('click',e=>{
 document.addEventListener('submit',e=>{const f=e.target;if(!f.dataset.form)return;e.preventDefault();FORMS[f.dataset.form](f,new FormData(f))});
 document.addEventListener('change',e=>{const el=e.target.closest('[data-change]');if(el&&CHANGES[el.dataset.change])CHANGES[el.dataset.change](el,e)});
 document.addEventListener('input',e=>{const el=e.target.closest('[data-input]');if(el&&INPUTS[el.dataset.input])INPUTS[el.dataset.input](el,e)});
-document.addEventListener('keydown',e=>{if(S.ui.scn!=null&&(e.key==='ArrowRight'||e.key==='ArrowLeft')&&!e.target.closest('input,textarea,select')){const d=e.key==='ArrowRight'?1:-1,n=S.ui.scn+d;if(n>=0&&n<SCN.length)runScenario(n);return}if(e.key!=='Escape')return;if(S.modal){closeModal()}else if(S.ui.drawer){S.ui.drawer=false;renderTest()}else if(S.ui.pop){S.ui.pop=null;render()}});
+document.addEventListener('keydown',e=>{if(e.key==='/'&&!e.target.closest('input,textarea,select')){e.preventDefault();S.ui.drawer=true;S.ui.focusFind=true;renderTest();return}if(e.key==='Enter'&&e.target.id==='scq'){const b=$('#scn-res .scn-item');if(b)b.click();return}if(S.ui.scn!=null&&(e.key==='ArrowRight'||e.key==='ArrowLeft')&&!e.target.closest('input,textarea,select')){const d=e.key==='ArrowRight'?1:-1,n=S.ui.scn+d;if(n>=0&&n<SCN.length)runScenario(n);return}if(e.key!=='Escape')return;if(S.modal){closeModal()}else if(S.ui.drawer){S.ui.drawer=false;renderTest()}else if(S.ui.pop){S.ui.pop=null;render()}});
 render();
 </script>
 </body>
