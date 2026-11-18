@@ -230,6 +230,11 @@ table.rt{width:100%;border-collapse:collapse;font-size:14px}
 .scnbar .e{font-size:12px;color:var(--muted)}
 .scnbar .iconbtn{font-size:22px;flex:none}
 .scnbar .iconbtn:disabled{opacity:.3}
+.frtag{display:inline-block;font:600 11px/1 var(--f-body);padding:3px 6px;border-radius:999px;border:1px solid var(--tag);background:var(--tag-soft);color:var(--tag);margin-left:4px;white-space:nowrap}
+.scnbar .lbl{font-weight:600;color:var(--ink-2);margin-left:4px}
+.wkl{list-style:none;padding:0;margin:4px 0 0;display:grid;gap:2px;font-size:13px;font-weight:400}
+.wkl li{display:grid;grid-template-columns:34px 1fr;gap:6px}
+.wkl li.on{font-weight:600;color:var(--navy)}
 .try-h{font-weight:600;font-size:13px;margin-top:6px}
 
 /* staff */
@@ -367,18 +372,21 @@ table.rt{width:100%;border-collapse:collapse;font-size:14px}
 
 <script>
 /* ---------- constants ---------- */
-const VER=8, KEY='coachroster-demo';
+const VER=9, KEY='coachroster-demo';
 const STOPS={SG:'Singapore (Woodlands)',KL:'Kuala Lumpur (TBS)',ML:'Malacca Sentral',SK:'Skudai',SN:'Senai Airport'};
 const SHORT={SG:'Singapore',KL:'Kuala Lumpur',ML:'Malacca',SK:'Skudai',SN:'Senai Airport'};
 const ROUTES={KL:{drive:300,daily:'6 trips a day'},ML:{drive:210,daily:'3 trips a day'},SK:{drive:60,daily:'Every 2 hours'},SN:{drive:75,daily:'3 trips a day'}};
 const FLEET=['SKC 1204 Z','SKC 0871 K','SKC 3310 P','SKC 1207 B','SKC 1211 R','SKC 1290 H','SKC 2290 M'];
-const SHIFTS={early:'Early (05:00–12:00)',day:'Day (09:00–18:00)',late:'Late (14:00–23:00)',any:'No preference'};
+const SHIFTS={day:'Day shift',night:'Night shift',any:'No preference'};
+const RTYPES={long:'Long distance (Kuala Lumpur, Malacca)',short:'Short distance (Skudai, Senai)',any:'No preference'};
+const EMAIL_RE=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DAYS7=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 const DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const ALLOC_WEEK='2026-11-16';
 const STAFF_WEEKS=['2026-11-09','2026-11-16','2026-11-23','2026-11-30','2026-12-07','2026-12-14'];
 const PW='Roster@2026!', OTP='246810', MANAGER='200118';
 const TIMES=[];for(let m=300;m<=1410;m+=30)TIMES.push(fromMin(m));
+const HOURS=[];for(let m=0;m<=1410;m+=30)HOURS.push(fromMin(m));
 
 /* ---------- helpers ---------- */
 function $(s){return document.querySelector(s)}
@@ -401,6 +409,8 @@ function bnr(tone,html,act=''){return `<div class="bnr ${tone}"><div>${html}</di
 function pageHead(sub,actions=''){return `<div class="ph"><div><h1>${TITLES[S.view]}</h1><p class="muted">${sub}</p></div>${actions?`<div class="row">${actions}</div>`:''}</div>`}
 function routeHtml(j){return `<span class="route">${SHORT[j.o]}<i>→</i>${SHORT[j.d]}</span>`}
 function token(){return Math.random().toString(36).slice(2,10)}
+function fmtLong(iso){const d=dt(iso);return `${d.getUTCDate()} ${MON[d.getUTCMonth()]} ${d.getUTCFullYear()}`}
+function radios(name,obj,sel,dis){return Object.entries(obj).map(([k,v])=>`<label class="check"><input type="radio" name="${name}" value="${k}" ${sel===k?'checked':''} ${dis?'disabled':''}><span>${v}</span></label>`).join('')}
 function initials(n){return n.split(' ').map(x=>x[0]).slice(0,2).join('')}
 const IC={
  home:'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
@@ -434,17 +444,18 @@ function seed(){
     U('104120','Kumar Selvam','staff','Coach Captain','active',24,14),
     U('104288','Wong Kai Xiang','staff','Coach Captain','active',31,18),
     U('104745','Daniel Lim','staff','Coach Captain','active',29,17),
-    U('104502','Lim Jun Hao','staff','Crew','active',22,12),
-    U('104618','Mei Ling Tan','staff','Crew','active',31,19),
-    U('104812','Siti Aminah','staff','Crew','active',18,10),
-    U('105120','Nur Hidayah','staff','Crew','active',35,20),
-    U('104955','Aaron Chua','staff','Crew','active',33,18),
-    U('105014','Farah Aziz','staff','Crew','active',20,11),
-    U('104677','Marcus Lee','staff','Crew','active',26,15),
-    U('105902','Priya Nair','staff','Crew','inactive',0,0),
+    U('104502','Lim Jun Hao','staff','Cabin Crew','active',22,12),
+    U('104618','Mei Ling Tan','staff','Cabin Crew','active',31,19),
+    U('104812','Siti Aminah','staff','Cabin Crew','active',18,10),
+    U('105120','Nur Hidayah','staff','Cabin Crew','active',35,20),
+    U('104955','Aaron Chua','staff','Cabin Crew','active',33,18),
+    U('105014','Farah Aziz','staff','Cabin Crew','active',20,11),
+    U('104677','Marcus Lee','staff','Cabin Crew','active',26,15),
+    U('105902','Priya Nair','staff','Cabin Crew','inactive',0,0),
     U('200118','Rachel Goh','manager','Operations Manager','active'),
     U('300021','Kelvin Ong','admin','IT Admin','active'),
   ];
+  users.forEach((u,i)=>{u.mobile=(i%2?'8':'9')+u.id.slice(0,3)+' '+u.id.slice(3)+String(i%10);u.start=['2019-03-04','2020-07-13','2021-01-18','2022-05-09','2023-02-06','2024-08-19'][i%6]});
   const avail={};
   const av=(uid,mon,sub,spec,at)=>{(avail[uid]||(avail[uid]={}))[mon]={submitted:sub,submittedAt:at||null,dirty:false,days:parseAv(mon,spec)}};
   const W=ALLOC_WEEK;
@@ -464,12 +475,12 @@ function seed(){
   av('105014',W,true,'Mon SG 06:00-16:00;Tue SG 06:00-14:00;Thu KL 12:00-22:00','Mon 2 Nov 21:10');
   av('104677',W,true,'Mon SG 08:00-18:00;Wed SG 05:00-12:00;Sat SK 08:00-16:00','Wed 4 Nov 09:05');
   av('104745',W,false,'');av('104955',W,false,'');
-  const P=(routes,shift,off=[],notes='')=>({routes,shift,off,notes});
-  const prefs={'104233':P(['KL','ML'],'early',['Sun'],'I prefer to start from Woodlands.'),'104871':P(['KL'],'early',['Sat','Sun']),'104390':P(['SK','SN'],'any'),'103377':P(['ML'],'day',['Mon']),'105233':P(['KL','SK'],'late'),'104745':P(['KL'],'any'),'104502':P(['SK'],'early',['Sun']),'104618':P(['KL','ML'],'day'),'104812':P(['SN'],'early',['Fri']),'105120':P(['SK','SN'],'day'),'104955':P(['ML'],'any'),'104120':P(['KL','SK'],'early',['Sun'],'Happy to take extra Malaysia runs.'),'104288':P(['SK','SN'],'day',['Thu']),'105014':P(['KL'],'early',['Sat']),'104677':P(['SK'],'day',['Sun']),'105902':P([],'any')};
+  const P=(shift,route,off=[],notes='')=>({[W]:{shift,route,off,notes}});
+  const prefs={'104233':P('day','long',['Sat'],'I prefer to start from Woodlands.'),'104871':P('day','long',['Fri']),'104390':P('any','short'),'103377':P('day','long'),'105233':P('night','any'),'104120':P('day','long',[],'Happy to take extra Malaysia runs.'),'104288':P('day','short',['Fri']),'104745':P('any','long'),'104502':P('day','short'),'104618':P('day','long'),'104812':P('day','short'),'105120':P('day','short',['Sun']),'104955':P('any','long'),'105014':P('day','long'),'104677':P('day','short',['Sat']),'105902':{}};
   const J=(id,date,dep,o,d,captain=null,crew=null,coach=null)=>({id,date,dep,o,d,captain,crew,coach});
   return {
     v:VER, session:null, auth:{screen:'login'}, view:'home', modal:null,
-    users, avail, prefs,
+    users, avail, prefs, fleet:[...FLEET], unsaved:{},
     jobs:[J('JB-1601','2026-11-16','07:00','SG','KL','104871','104502','SKC 1204 Z'),J('JB-1602','2026-11-16','09:00','SG','SK'),J('JB-1603','2026-11-17','08:00','SG','ML','103377'),J('JB-1604','2026-11-18','06:30','SG','SN','104390','104812','SKC 0871 K'),J('JB-1605','2026-11-19','14:00','KL','SG'),J('JB-1606','2026-11-21','10:00','SK','SG')],
     pubJobs:[J('JB-1420','2026-10-31','07:00','SG','KL','104233','104618','SKC 1207 B'),J('JB-1488','2026-11-06','08:00','SG','ML','104233','105120','SKC 3310 P'),J('JB-1503','2026-11-09','07:00','SG','KL','104233','104618','SKC 1207 B'),J('JB-1511','2026-11-12','09:00','SG','SK','104233','104502','SKC 1211 R'),J('JB-1512','2026-11-11','13:00','KL','SG','103377','104618','SKC 2290 M'),J('JB-1514','2026-11-14','15:00','SN','SG','104233','104812','SKC 1290 H'),J('JB-1516','2026-11-15','07:00','SG','SN','103377','105120','SKC 1204 Z'),J('JB-1490','2026-11-07','10:00','SK','SG','105233','105120','SKC 1211 R')],
     tickets:[
@@ -486,8 +497,8 @@ function seed(){
     resets:[{id:'R-2',uid:'104812',at:'Wed 4 Nov 10:42',status:'new'}],
     maint:[], inbox:[],
     roster:{published:false,at:null},
-    ui:{week:ALLOC_WEEK,dayErr:{},allocJob:'JB-1602',allocRole:'captain',compare:[],tf:'pending',tsel:'T-032',uq:'',ur:'all',us:'all',created:null,pop:null,drawer:false,openMail:null,showIssues:false,resetArm:false},
-    test:{afterDeadline:false,emailFail:false,publishFail:false,linkExpired:false},
+    ui:{week:ALLOC_WEEK,pweek:ALLOC_WEEK,dayErr:{},allocJob:'JB-1602',allocRole:'captain',compare:[],tf:'pending',tsel:'T-032',uq:'',ur:'all',us:'all',created:null,pop:null,drawer:false,openMail:null,showIssues:false,resetArm:false},
+    test:{afterDeadline:false,emailFail:false,publishFail:false,serverFail:false,linkExpired:false,now:null},
     seq:{job:1606,ticket:33,n:100,mail:1,reset:3}
   };
 }
@@ -499,8 +510,9 @@ let S=load()||seed();
 function user(id){return S.users.find(u=>u.id===id)}
 function me(){return S.session&&user(S.session.uid)}
 function role(){const u=me();return u&&u.role}
-function NOW(){if(role()==='manager')return{date:'2026-11-05',time:'09:00'};return S.test.afterDeadline?{date:'2026-11-05',time:'00:01'}:{date:'2026-11-04',time:'14:00'}}
+function NOW(){if(S.test.now)return S.test.now;if(role()==='manager')return{date:'2026-11-05',time:'09:00'};return S.test.afterDeadline?{date:'2026-11-05',time:'00:01'}:{date:'2026-11-04',time:'14:00'}}
 function stamp(){const n=NOW();return `${fmtD(n.date)} ${n.time}`}
+function getPrefs(uid,mon){const p=S.prefs[uid]||(S.prefs[uid]={});return p[mon]||(p[mon]={shift:'any',route:'any',off:[],notes:''})}
 function getAvail(uid,mon){const a=S.avail[uid]||(S.avail[uid]={});return a[mon]||(a[mon]={submitted:false,submittedAt:null,dirty:false,days:{}})}
 function routeOf(o,d){if(!o||!d||o===d)return null;if(o==='SG'&&ROUTES[d])return d;if(d==='SG'&&ROUTES[o])return o;return null}
 function timing(j){const r=routeOf(j.o,j.d);const drive=ROUTES[r].drive;const breaks=Math.floor((drive-1)/120);const total=drive+breaks*30;const s=toMin(j.dep);return{drive,breaks,total,start:s,end:s+total,arr:fromMin(s+total)}}
@@ -521,18 +533,20 @@ function eligibility(u,job,slot){
   const d=a.days[job.date];const t=timing(job);
   const cover=d&&d.slots.find(x=>toMin(x.s)<=t.start&&toMin(x.e)>=t.end);
   if(!cover)return d&&d.slots.length?{ok:false,code:'unavail',short:'Not free at this time',why:`Only free ${d.slots.map(x=>x.s+'–'+x.e).join(', ')}`}:{ok:false,code:'unavail',short:'Not available this day',why:'Not available this day'};
+  let rule=null;
   for(const j of S.jobs){
     if(j.id===job.id||j.date!==job.date||(j.captain!==u.id&&j.crew!==u.id))continue;
     const t2=timing(j);
     if(t.start<t2.end&&t2.start<t.end)return{ok:false,code:'clash',short:`Already on ${j.id}`,why:`Already on ${j.id} (${j.dep}–${t2.arr})`};
     const gap=t.start>=t2.end?t.start-t2.end:t2.start-t.end;
-    if(gap<30)return{ok:false,code:'rest',short:'Needs a 30-min break',why:`Needs a 30-min break after ${j.id} (2-hour driving rule)`};
+    if(slot==='captain'&&j.captain===u.id&&gap<30)rule=j.id;
   }
-  return{ok:true,warn:d.loc&&d.loc!==job.o?`Starts the day in ${SHORT[d.loc]}`:''};
+  return{ok:true,rule,warn:d.loc&&d.loc!==job.o?`Starts the day in ${SHORT[d.loc]}`:''};
 }
-function stCell(el){if(el.assigned)return pill('Assigned','ok');if(el.ok)return el.warn?`<span class="st">${pill('Free','ok')}<span class="why">${esc(el.warn)}</span></span>`:pill('Free','ok');return `<span class="st">${pill(esc(el.short||el.why))}${el.why&&el.why!==el.short?`<span class="why">${esc(el.why)}</span>`:''}</span>`}
+function stCell(el){if(el.assigned)return pill('Assigned','ok');if(el.ok){if(el.rule)return `<span class="st">${pill('Driving rule','warn')}<span class="why">Under 30 min break after ${el.rule}. Saving will be blocked.</span></span>`;return el.warn?`<span class="st">${pill('Free','ok')}<span class="why">${esc(el.warn)}</span></span>`:pill('Free','ok')}return `<span class="st">${pill(esc(el.short||el.why))}${el.why&&el.why!==el.short?`<span class="why">${esc(el.why)}</span>`:''}</span>`}
+function driveBreach(job){const c=job.captain;if(!c)return null;const t=timing(job);for(const j of S.jobs){if(j.id===job.id||j.date!==job.date||j.captain!==c)continue;const t2=timing(j);const gap=t.start>=t2.end?t.start-t2.end:t2.start-t.end;if(gap>=0&&gap<30){const[a,b]=t.start<t2.start?[job,j]:[j,job];return{u:user(c),a,b,gap}}}return null}
 function coachBusy(reg,job){const t=timing(job);return S.jobs.find(j=>j.id!==job.id&&j.coach===reg&&j.date===job.date&&timing(j).start<t.end&&t.start<timing(j).end)}
-function publishIssues(){return sortJobs(S.jobs).flatMap(j=>{const m=[];if(!j.captain)m.push('a captain');if(!j.crew)m.push('a crew member');if(!j.coach)m.push('a coach');return m.length?[`<b>${j.id}</b> (${fmtD(j.date)}, ${j.dep}) needs ${joinAnd(m)}.`]:[]})}
+function publishIssues(){return sortJobs(S.jobs).flatMap(j=>{const m=[],out=[];if(!j.captain)m.push('a coach captain');if(!j.crew)m.push('a cabin crew member');if(m.length)out.push(`<b>${j.id}</b> (${fmtD(j.date)}, ${j.dep}) needs ${joinAnd(m)}.`);if(S.unsaved[j.id])out.push(`<b>${j.id}</b> has allocation changes that are not saved.`);return out})}
 function myJobs(uid){const n=NOW().date;return sortJobs([...S.pubJobs,...(S.roster.published?S.jobs:[])].filter(j=>(j.captain===uid||j.crew===uid)&&j.date>=n))}
 function notify(uid,text,go){(S.notifs[uid]||(S.notifs[uid]=[])).unshift({id:++S.seq.n,text,time:stamp(),go,read:false})}
 function mail(to,subject,body,link){S.inbox.unshift({id:++S.seq.mail,to,subject,body,time:stamp(),link:link||null,seen:false})}
@@ -552,20 +566,21 @@ function closeModal(){S.modal=null;renderModal()}
 /* ---------- auth screens ---------- */
 function auth(){
   const a=S.auth;
-  const maint=S.maint.length?bnr('info',`Planned maintenance: <b>${fmtD(S.maint[0].date)}, 02:00–04:00 SGT</b>. CoachRoster will be offline.`):'';
+  const maint=S.maint.length?bnr('info',`Planned maintenance: <b>${fmtD(S.maint[0].date)}, ${S.maint[0].s}–${S.maint[0].e} SGT</b>. CoachRoster will be offline.`):'';
   let m='';
   if(a.screen==='login'){
-    m=`<div><h1>Sign in</h1><p class="muted">Use your 6-digit Employee ID.</p></div>${a.msg?bnr(a.tone||'info',a.msg):''}${maint}
+    m=`<div><h1>Sign in</h1><p class="muted">Use your company email and password.</p></div>${a.msg?bnr(a.tone||'info',a.msg):''}${maint}
     <form class="form" data-form="login" novalidate>
       <div class="err-banner" data-err="form" tabindex="-1"></div>
-      <label class="field"><span>Employee ID</span><input id="eid" name="eid" inputmode="numeric" maxlength="6" autocomplete="username" value="${esc(a.fill||'')}" placeholder="e.g. 104233"><small class="err" data-err="eid"></small></label>
-      <label class="field"><span>Password</span><span class="pw"><input id="pw" type="password" name="pw" autocomplete="current-password"><button type="button" class="link" data-act="togglePw">Show</button></span><small class="err" data-err="pw"></small></label>
+      <label class="field"><span>Company email</span><input id="email" name="email" type="email" autocomplete="username" value="${esc(a.fill||'')}" placeholder="name@coachco.sg"><small class="err" data-err="email"></small></label>
+      <label class="field"><span>Password</span><span class="pw"><input id="pw" type="password" name="pw" autocomplete="current-password" placeholder="At least 12 characters"><button type="button" class="link" data-act="togglePw">Show</button></span><small class="err" data-err="pw"></small></label>
       <button class="btn primary block">Sign in</button>
       <button type="button" class="link" data-act="authGo" data-s="forgot">Forgot password?</button>
     </form>
+    <p class="muted small">No self sign-up. IT admin creates every account.</p>
     <div class="testbox"><div class="row"><span class="tag">Test accounts</span><span>Password for all: <b class="mono">${PW}</b></span></div>
-      ${[['104233','Ahmad Faizal','Staff · Captain'],['200118','Rachel Goh','Manager · needs code'],['300021','Kelvin Ong','IT Admin · needs code'],['105902','Priya Nair','Inactive account']].map(x=>`<div class="acct"><span><b>${x[1]}</b><br><span class="muted">${x[2]}</span></span><span class="mono">${x[0]}</span><button class="btn sm" type="button" data-act="fill" data-id="${x[0]}">Use</button></div>`).join('')}
-      <span>Sign-in code for managers and IT admins: <b class="mono">${OTP}</b></span><button type="button" class="btn sm" data-act="scn" data-i="0">Present all ${SCN.length} scenarios</button></div>`;
+      ${[['ahmad.faizal@coachco.sg','Ahmad Faizal','Staff · Coach Captain'],['rachel.goh@coachco.sg','Rachel Goh','Manager'],['kelvin.ong@coachco.sg','Kelvin Ong','IT Admin'],['priya.nair@coachco.sg','Priya Nair','Inactive account']].map(x=>`<div class="acct"><span><b>${x[1]}</b><br><span class="muted">${x[2]}</span></span><span class="mono small">${x[0]}</span><button class="btn sm" type="button" data-act="fill" data-id="${x[0]}">Use</button></div>`).join('')}
+      <button type="button" class="btn sm" data-act="scn" data-i="0">Present all ${SCN.length} scenarios</button></div>`;
   } else if(a.screen==='twofa'){
     const u=user(a.uid);
     m=`<div><h1>Enter your code</h1><p class="muted">We sent a 6-digit code to ${esc(maskEmail(u.email))}. Managers and IT admins need this extra step because they can change rosters and accounts.</p></div>
@@ -575,20 +590,20 @@ function auth(){
       <div class="row" style="justify-content:space-between"><button type="button" class="link" data-act="resendOtp">Send a new code</button><button type="button" class="link" data-act="authGo" data-s="login">Back to sign in</button></div>
     </form><div class="testbox"><span><span class="tag">Test</span> The code is <b class="mono">${OTP}</b>. Type anything else to see the error.</span></div>`;
   } else if(a.screen==='locked'){
-    const u=user(a.uid);
-    m=`<div><h1>Account locked</h1><p class="muted">The password was wrong 5 times for ${esc(u.name)} (${u.id}). We locked the account to keep it safe.</p></div>
-    ${bnr('warn','To unlock it, ask IT admin for a password reset link. Setting a new password unlocks the account.')}
-    <button class="btn primary block" data-act="lockedReset">Request password reset</button>
+    const u=user(a.uid),until=fromMin(toMin(NOW().time)+15);
+    m=`<div><h1>Account locked</h1><p class="muted">The password for ${esc(u.email)} was wrong 5 times in a row. The account is locked for 15 minutes to keep it safe.</p></div>
+    ${bnr('warn',`Try again after <b>${until}</b>, or reset your password now.`)}
+    <button class="btn primary block" data-act="lockedReset">Reset my password</button>
     <button class="link" data-act="authGo" data-s="login">Back to sign in</button>`;
   } else if(a.screen==='forgot'){
-    m=`<div><h1>Forgot password</h1><p class="muted">Enter your Employee ID. IT admin will email you a reset link.</p></div>
+    m=`<div><h1>Forgot password</h1><p class="muted">Enter your company email. IT admin will email you a reset link.</p></div>
     <form class="form" data-form="forgot" novalidate>
-      <label class="field"><span>Employee ID</span><input id="feid" name="eid" inputmode="numeric" maxlength="6" placeholder="e.g. 104233"><small class="err" data-err="eid"></small></label>
+      <label class="field"><span>Company email</span><input id="femail" name="email" type="email" placeholder="name@coachco.sg"><small class="err" data-err="email"></small></label>
       <button class="btn primary block">Send request to IT admin</button>
       <button type="button" class="link" data-act="authGo" data-s="login">Back to sign in</button></form>`;
   } else if(a.screen==='forgotSent'){
-    m=`<div><h1>Request sent</h1><p class="muted">If that Employee ID exists, IT admin will get your request and email you a reset link. The link works for 30 minutes.</p></div>
-    ${bnr('info','We show the same message for every ID, so nobody can use this page to find out which IDs exist.')}
+    m=`<div><h1>Request sent</h1><p class="muted">If that email belongs to an account, IT admin gets your request and will email you a reset link. The link works for 30 minutes.</p></div>
+    ${bnr('info','We show the same message for every email, so nobody can use this page to find out who has an account.')}
     <div class="testbox"><span><span class="tag">Test</span> Sign in as Kelvin (IT Admin), open <b>Reset requests</b> and send the link. Then open it from <b>Test tools → Inbox</b>.</span></div>
     <button class="btn primary block" data-act="authGo" data-s="login">Back to sign in</button>`;
   } else if(a.screen==='setpw'){
@@ -596,13 +611,13 @@ function auth(){
     m=`<div><h1>${act?'Activate your account':'Set a new password'}</h1><p class="muted">${esc(u.name)} · Employee ID <span class="mono">${u.id}</span></p></div>
     <form class="form" data-form="setpw" novalidate>
       <label class="field"><span>New password</span><span class="pw"><input id="np" type="password" name="pw" autocomplete="new-password" data-input="pwRules"><button type="button" class="link" data-act="togglePw">Show</button></span><small class="err" data-err="pw"></small></label>
-      <ul class="rules" id="rules"><li data-r="len">At least 12 characters</li><li data-r="let">Has a letter</li><li data-r="num">Has a number</li></ul>
+      <ul class="rules" id="rules"><li data-r="len">At least 12 characters</li></ul>
       <label class="field"><span>Type it again</span><input id="np2" type="password" name="pw2" autocomplete="new-password"><small class="err" data-err="pw2"></small></label>
       <button class="btn primary block">${act?'Activate account':'Save new password'}</button></form>`;
   } else if(a.screen==='linkBad'){
     const exp=a.why==='expired';
     m=`<div><h1>${exp?'This link has expired':'This link was already used'}</h1><p class="muted">${exp?'Reset links work for 30 minutes and activation links work for 72 hours.':'Each link works once. If you still need to change your password, ask for a new link.'}</p></div>
-    ${a.type==='reset'?`<button class="btn primary block" data-act="badLinkReset">Ask IT admin for a new link</button>`:bnr('info','Ask IT admin to send you a new activation link.')}
+    ${a.type==='reset'?`<button class="btn primary block" data-act="badLinkReset">Request a new reset link</button>`:bnr('info','Invitation links work for 72 hours. Ask IT admin to send you a new one.')}
     <button class="link" data-act="authGo" data-s="login">Back to sign in</button>`;
   }
   return `<main class="auth"><div class="auth-card">${brandHtml}${m}</div></main>`;
@@ -646,14 +661,17 @@ function vHome(){
   const total=Math.round((u.workedNov+sched)*10)/10;
   const next=jobs[0];
   const tks=S.tickets.filter(t=>t.uid===u.id);
-  const rows=jobs.map(j=>{const d=dt(j.date);const tk=S.tickets.find(t=>t.job===j.id&&t.uid===u.id&&t.status==='pending');return `<button class="jobrow" data-act="openJob" data-id="${j.id}"><span class="datebox"><span>${DOW[d.getUTCDay()]}</span><b>${d.getUTCDate()}</b><span>${MON[d.getUTCMonth()]}</span></span><span style="min-width:0"><span class="row"><span class="code">${j.id}</span>${routeHtml(j)}</span><span class="muted small">${j.dep}–${timing(j).arr} · ${j.captain===u.id?'Coach Captain':'Crew'} · ${j.coach||'Coach not set'}</span></span><span>${tk?pill('Ticket pending','warn'):pill('Details','')}</span></button>`}).join('');
+  const rows=jobs.map(j=>{const d=dt(j.date);const tk=S.tickets.find(t=>t.job===j.id&&t.uid===u.id&&t.status==='pending');return `<button class="jobrow" data-act="openJob" data-id="${j.id}"><span class="datebox"><span>${DOW[d.getUTCDay()]}</span><b>${d.getUTCDate()}</b><span>${MON[d.getUTCMonth()]}</span></span><span style="min-width:0"><span class="row"><span class="code">${j.id}</span>${routeHtml(j)}</span><span class="muted small">${j.dep}–${timing(j).arr} · ${j.captain===u.id?'Coach Captain':'Cabin Crew'} · Coach <b class="mono">${j.coach||'not set'}</b></span></span><span>${tk?pill('Ticket pending','warn'):pill('Details','')}</span></button>`}).join('');
+  const word={pending:'Waiting for manager',approved:'Approved',rejected:'Rejected',closed:'Closed'},tone={pending:'warn',approved:'ok',rejected:'bad',closed:''};
+  const tkHtml=tks.slice(0,3).map(t=>{const j=findJob(t.job);return `<div class="card tk"><div class="tk-h"><span class="row"><span class="code">${t.id}</span><b>${j.id} · ${fmtD(j.date)}</b></span>${pill(word[t.status],tone[t.status])}</div>${t.decision?`<div><span class="eyebrow">Manager's reason</span><p>${esc(t.decision.reason)}</p></div>`:'<p class="muted small">You stay on this job until your manager decides.</p>'}</div>`}).join('');
   return `<div class="ph"><div><h2 style="font-size:28px">Hi ${esc(u.name.split(' ')[0])}</h2><p class="muted">${esc(u.position)} · ID <span class="mono">${u.id}</span></p></div></div>${b}
   <div class="tiles">
-    <div class="card tile"><span class="eyebrow">Hours this month · Nov</span><span class="big">${total}<small> h</small></span><span class="muted small">${u.workedNov} h worked + ${Math.round(sched*10)/10} h scheduled</span><div class="bar"><span style="width:${Math.min(100,total/160*100)}%"></span></div><span class="muted small">Out of a 160 h month</span></div>
+    <div class="card tile"><span class="eyebrow">Allocated hours · November</span><span class="big">${total}<small> h</small></span><span class="muted small">${u.workedNov} h done + ${Math.round(sched*10)/10} h still to come</span><div class="bar"><span style="width:${Math.min(100,total/160*100)}%"></span></div><span class="muted small">Out of a 160 h month</span></div>
     <div class="card tile"><span class="eyebrow">Next job</span>${next?`<span class="big" style="font-size:28px">${fmtD(next.date)}</span><span>${routeHtml(next)}</span><span class="muted small mono">${next.dep}–${timing(next).arr}</span>`:'<span class="muted">No upcoming jobs.</span>'}</div>
     <div class="card tile"><span class="eyebrow">My tickets</span><span class="big">${tks.filter(t=>t.status==='pending').length}<small> pending</small></span><button class="link" style="justify-self:start" data-act="nav" data-v="tickets">See all tickets</button></div>
   </div>
-  <section class="stack"><h3 style="font-size:20px">Upcoming jobs</h3>${rows||'<div class="card empty">No upcoming jobs.</div>'}<p class="muted small">Tap a job to see details. You can reject a job up to 7 days before it starts.</p></section>`;
+  <section class="stack"><h3 style="font-size:20px">Upcoming jobs</h3>${rows||'<div class="card empty">No upcoming jobs.</div>'}<p class="muted small">Tap a job to see details. You can reject a job up to 7 days before it starts.</p></section>
+  <section class="stack" id="tk-updates"><h3 style="font-size:20px">Ticket updates</h3>${tkHtml||'<div class="card empty">No tickets yet.</div>'}</section>`;
 }
 function weekStatusText(uid,m,st){const a=getAvail(uid,m);return{locked:'Not open yet','closed-sub':'Closed · sent','closed-missed':'Closed · missed',open:`Due ${fmtD(deadlineOf(m))}`,submitted:a.dirty?'Unsent changes':'Submitted'}[st]}
 function vAvail(){
@@ -661,10 +679,10 @@ function vAvail(){
   const tabs=STAFF_WEEKS.map(m=>{const s=weekState(u.id,m);return `<button class="wtab ${m===wk?'on':''} st-${s}" data-act="week" data-m="${m}" aria-pressed="${m===wk}"><b>${weekLabel(m)}</b><span>${weekStatusText(u.id,m,s)}</span></button>`}).join('');
   let head='',ed=false;
   if(st==='locked')head=bnr('info',`You can add availability up to 5 weeks ahead. ${weekLabel(wk)} opens on ${fmtD(addDays(wk,-35))}.`);
-  else if(st==='closed-sub')head=bnr('info',`This week closed on ${fmtD(dl)} at 23:59. This is what you sent.`);
+  else if(st==='closed-sub')head=bnr('info',`<b>The deadline has passed</b> (${fmtD(dl)}, 23:59), so this week is read only. This is what you sent.`);
   else if(st==='closed-missed')head=bnr('bad',`<b>You missed the deadline</b> (${fmtD(dl)}, 23:59). You won't be given jobs this week. Speak to your manager if you can still work.`);
   else if(st==='open'){ed=true;head=bnr(dl===n.date?'warn':'info',`Submit by <b>${fmtD(dl)}, 23:59</b>${dl===n.date?' (today)':''}. Your manager only sees it after you submit.`)}
-  else{ed=true;head=a.dirty?bnr('warn',`You changed this week after sending it. <b>Resubmit</b> before ${fmtD(dl)}, 23:59 so your manager sees the changes.`):bnr('ok',`Submitted ${esc(a.submittedAt)}. You can still edit until ${fmtD(dl)}, 23:59.`)}
+  else{ed=true;head=a.dirty?bnr('warn',`You changed this week after sending it. <b>Resubmit</b> before ${fmtD(dl)}, 23:59 so your manager sees the changes.`):bnr('ok',`<b>You already submitted this week</b> (${esc(a.submittedAt)}), so you are now editing it. Change anything, then resubmit before ${fmtD(dl)}, 23:59.`)}
   const days=Object.values(a.days);const nSlots=days.reduce((t,d)=>t+d.slots.length,0);const nDays=days.filter(d=>d.slots.length).length;
   const grid=st==='locked'?'':`<div class="days">${weekDays(wk).map(iso=>dayCard(iso,a,ed)).join('')}</div>`;
   const foot=ed?`<div class="actionbar"><span class="muted small">${nSlots} time slot${nSlots===1?'':'s'} on ${nDays} day${nDays===1?'':'s'}</span><div class="row">${st==='open'?`<button class="btn ghost" data-act="saveDraft">Save draft</button>`:''}<button class="btn primary" data-act="submitAvail" ${st==='submitted'&&!a.dirty?'disabled':''}>${st==='submitted'?(a.dirty?'Resubmit changes':'Submitted'):'Submit availability'}</button></div></div>`:'';
@@ -678,13 +696,16 @@ function dayCard(iso,a,ed){
   ${ed?`<button class="btn sm ghost block" data-act="addSlot" data-day="${iso}">${icon('plus','sm')}Add time slot</button>`:''}${err?`<small class="err">${err}</small>`:''}</div>`;
 }
 function vPrefs(){
-  const p=S.prefs[me().id]||(S.prefs[me().id]={routes:[],shift:'any',off:[],notes:''});
-  return pageHead('Your manager sees these when allocating jobs. They help, but they are not guaranteed.')+`<form class="card form" data-form="prefs" novalidate style="max-width:720px">
-  <fieldset><legend>Routes you prefer</legend><div class="checks">${Object.keys(ROUTES).map(r=>`<label class="check"><input type="checkbox" name="routes" value="${r}" ${p.routes.includes(r)?'checked':''}><span>Singapore ⇄ ${SHORT[r]}</span><span class="muted small" style="margin-left:auto">${ROUTES[r].daily}</span></label>`).join('')}</div></fieldset>
-  <fieldset><legend>Shift you prefer</legend><div class="checks">${Object.entries(SHIFTS).map(([k,v])=>`<label class="check"><input type="radio" name="shift" value="${k}" ${p.shift===k?'checked':''}><span>${v}</span></label>`).join('')}</div></fieldset>
-  <fieldset><legend>Days you prefer off</legend><div class="checks wrap">${DAYS7.map(d=>`<label class="check"><input type="checkbox" name="off" value="${d}" ${p.off.includes(d)?'checked':''}><span>${d}</span></label>`).join('')}</div><small class="err" data-err="off"></small></fieldset>
-  <label class="field"><span>Notes for your manager <span class="muted" style="font-weight:400">(optional)</span></span><textarea id="pnotes" name="notes" maxlength="200" rows="3" data-input="count">${esc(p.notes)}</textarea><small class="muted small" id="count">${p.notes.length}/200</small></label>
-  <div class="row end"><button class="btn primary">Save preferences</button></div></form>`;
+  const u=me(),wk=S.ui.pweek||ALLOC_WEEK,st=weekState(u.id,wk),p=getPrefs(u.id,wk),a=getAvail(u.id,wk),ed=st==='open'||st==='submitted';
+  const tabs=STAFF_WEEKS.map(m=>{const x=weekState(u.id,m);return `<button class="wtab ${m===wk?'on':''}" data-act="pweek" data-m="${m}" aria-pressed="${m===wk}"><b>${weekLabel(m)}</b><span>${x==='locked'?'Not open yet':(x==='open'||x==='submitted')?'Open':'Closed'}</span></button>`}).join('');
+  const days=weekDays(wk).map(iso=>{const d=a.days[iso],has=d&&d.slots.length,dn=DOW[dt(iso).getUTCDay()];return `<label class="check"><input type="checkbox" name="off" value="${dn}" ${p.off.includes(dn)?'checked':''} ${ed?'':'disabled'}><span>${fmtD(iso)}</span><span class="muted small" style="margin-left:auto">${has?'Available':'No availability'}</span></label>`}).join('');
+  return pageHead('Pick a week, then tell your manager what you prefer. Your manager sees this when allocating. It helps, but it is not guaranteed.')+`<div class="wtabs">${tabs}</div>${ed?'':bnr('info','This week is not open, so its preferences cannot be changed.')}
+  <form class="card form" data-form="prefs" novalidate style="max-width:720px"><div class="err-banner" data-err="form"></div><input type="hidden" name="week" value="${wk}">
+  <fieldset><legend>Preferred shift</legend><div class="checks">${radios('shift',SHIFTS,p.shift,!ed)}</div></fieldset>
+  <fieldset><legend>Preferred route type</legend><div class="checks">${radios('route',RTYPES,p.route,!ed)}</div></fieldset>
+  <fieldset><legend>Days you are available but prefer not to work</legend><div class="checks">${days}</div><small class="err" data-err="off"></small></fieldset>
+  <label class="field"><span>Notes for your manager <span class="muted" style="font-weight:400">(optional)</span></span><textarea id="pnotes" name="notes" maxlength="200" rows="2" data-input="count" ${ed?'':'disabled'}>${esc(p.notes)}</textarea><small class="muted small" id="count">${p.notes.length}/200</small></label>
+  ${ed?'<div class="row end"><button class="btn primary">Save preferences</button></div>':''}</form>`;
 }
 function vMyTickets(){
   const u=me();const tks=S.tickets.filter(t=>t.uid===u.id);
@@ -698,42 +719,48 @@ function vMyTickets(){
 function vDash(){
   const staff=S.users.filter(u=>u.role==='staff'&&u.status==='active');
   const sub=staff.filter(u=>getAvail(u.id,ALLOC_WEEK).submitted),missed=staff.filter(u=>!getAvail(u.id,ALLOC_WEEK).submitted);
-  const notReady=S.jobs.filter(j=>!j.captain||!j.crew||!j.coach).length,pend=S.tickets.filter(t=>t.status==='pending').length;
+  const notReady=S.jobs.filter(j=>!j.captain||!j.crew).length,pend=S.tickets.filter(t=>t.status==='pending').length;
+  const repl=S.pubJobs.filter(j=>j.replace).map(j=>{const t=S.tickets.find(x=>x.job===j.id&&x.status==='approved');return `<li><b>${j.id}</b> (${fmtD(j.date)}, ${j.dep}) needs a new ${!j.captain?'coach captain':'cabin crew member'}${t?` after ticket ${t.id} was approved`:''}.</li>`}).join('');
   const rows=[...staff].sort((a,b)=>workload(b)-workload(a)).map(u=>{const as=assignedMins(u.id);return `<tr class="${u.lastWeek>40||as>2400?'over':''}"><td data-label="Staff"><b>${esc(u.name)}</b><div class="muted small">${u.position}</div></td><td data-label="Last week"><span class="mono">${u.lastWeek} h</span> ${u.lastWeek>40?pill('Over 40h','bad'):''}</td><td data-label="Assigned 16–22 Nov"><span class="mono">${hrs(as)}</span> ${as>2400?pill('Over 40h','bad'):''}</td><td data-label="Availability">${getAvail(u.id,ALLOC_WEEK).submitted?pill('Submitted','ok'):pill('Missed deadline','bad')}</td></tr>`}).join('');
-  return pageHead('Week being planned: <b>16–22 Nov</b>. Availability closed Wed 4 Nov, 23:59.',`<button class="btn primary" data-act="nav" data-v="allocate">Allocate 16–22 Nov</button>`)+`
+  return pageHead('Week being planned: <b>16–22 Nov</b>. Availability closed Wed 4 Nov, 23:59.',`<button class="btn primary" data-act="nav" data-v="allocate">Allocate 16–22 Nov</button>`)+(repl?bnr('warn',`<b>Jobs that need a replacement</b><ul>${repl}</ul>`):'')+`
   <div class="tiles">
     <div class="card tile"><span class="eyebrow">Availability sent</span><span class="big">${sub.length}<small> / ${staff.length}</small></span><span class="muted small">${missed.length?`Missed: ${missed.map(u=>esc(u.name)).join(', ')}. They can't be allocated.`:'Everyone submitted.'}</span></div>
     <div class="card tile alert"><span class="eyebrow">Over 40 h last week</span><span class="big">${staff.filter(u=>u.lastWeek>40).length}<small> staff</small></span><span class="small">Highlighted in red below</span></div>
-    <div class="card tile"><span class="eyebrow">Jobs not ready</span><span class="big">${notReady}<small> / ${S.jobs.length}</small></span><button class="link" style="justify-self:start" data-act="nav" data-v="publish">See what's missing</button></div>
+    <div class="card tile"><span class="eyebrow">Jobs missing staff</span><span class="big">${notReady}<small> / ${S.jobs.length}</small></span><button class="link" style="justify-self:start" data-act="nav" data-v="allocate">Allocate staff</button></div>
     <div class="card tile"><span class="eyebrow">Tickets to review</span><span class="big">${pend}</span><button class="link" style="justify-self:start" data-act="nav" data-v="mtickets">Review tickets</button></div>
     <div class="card tile"><span class="eyebrow">Roster 16–22 Nov</span><span class="big" style="font-size:28px">${S.roster.published?'Published':'Draft'}</span><span class="muted small">${S.roster.published?'Staff can see their jobs.':'Staff can\'t see it yet.'}</span></div>
   </div>
-  <section class="stack"><h3 style="font-size:20px">Staff workload</h3><p class="muted small">Anyone over 40 hours in a week is marked red, so you can spread jobs fairly.</p><div class="tw"><table class="rt"><thead><tr><th>Staff</th><th>Last week (26 Oct–1 Nov)</th><th>Assigned 16–22 Nov</th><th>Availability</th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
+  <section class="stack"><h3 style="font-size:20px">Staff workload</h3><p class="muted small">Anyone over 40 hours in a week is marked red, so you can spread jobs fairly. Managers only see manager pages.</p><div class="tw"><table class="rt"><thead><tr><th>Staff</th><th>Last week (26 Oct–1 Nov)</th><th>Assigned 16–22 Nov</th><th>Availability</th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
 }
 function weekStrip(){return `<div class="weekstrip"><span class="wk off">9–15 Nov · Published</span><span class="wk on">16–22 Nov · Planning</span><span class="wk off" title="Opens after 16–22 Nov is published">23–29 Nov · Locked</span><span class="muted small">You plan one week at a time.</span></div>`}
-function jobStatus(j){return !j.captain||!j.crew?pill('Needs staff','warn'):!j.coach?pill('Needs coach','warn'):pill('Ready','ok')}
+function jobStatus(j){return !j.captain||!j.crew?pill('Needs staff','warn'):!j.coach?pill('Needs coach',''):pill('Ready','ok')}
 function staffName(id){return id?esc(user(id).name):'<span class="muted">—</span>'}
 function vJobs(){
   const pub=S.roster.published;
-  const rows=sortJobs(S.jobs).map(j=>{const t=timing(j);return `<tr><td data-label="Job"><span class="code">${j.id}</span></td><td data-label="Date">${fmtD(j.date)}</td><td data-label="Time"><span class="mono">${j.dep}–${t.arr}</span></td><td data-label="Route">${routeHtml(j)}</td><td data-label="Driving">${fmtDur(t.drive)}${t.breaks?` <span class="muted small">+ ${t.breaks} break${t.breaks>1?'s':''}</span>`:''}</td><td data-label="Captain">${staffName(j.captain)}</td><td data-label="Crew">${staffName(j.crew)}</td><td data-label="Status">${jobStatus(j)}</td><td data-label="">${pub?'':`<button class="btn sm" data-act="allocJobGo" data-id="${j.id}">Allocate</button>`}</td></tr>`}).join('');
-  return pageHead('Jobs for 16–22 Nov. Each job runs between Singapore and one stop.',`<button class="btn primary" data-act="createJob" ${pub?'disabled':''}>${icon('plus','sm')}Create job</button>`)+weekStrip()+(pub?bnr('ok','This week is published. Jobs are locked.'):'')+`<div class="tw"><table class="rt"><thead><tr><th>Job</th><th>Date</th><th>Time</th><th>Route</th><th>Driving</th><th>Captain</th><th>Crew</th><th>Status</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+  const head=pageHead('Jobs for 16–22 Nov. Each job runs between Singapore and one stop. Each job shows if it has a coach.',`<button class="btn primary" data-act="createJob" ${pub?'disabled':''}>${icon('plus','sm')}Create job</button>`)+weekStrip()+(pub?bnr('ok','This week is published. Jobs are locked.'):'');
+  if(!S.jobs.length)return head+`<div class="card empty">There are no jobs in 16–22 Nov yet, so there is nothing to allocate or assign a coach to. Create a job first.</div>`;
+  const rows=sortJobs(S.jobs).map(j=>{const t=timing(j);return `<tr><td data-label="Job"><span class="code">${j.id}</span></td><td data-label="Date">${fmtD(j.date)}</td><td data-label="Time"><span class="mono">${j.dep}–${t.arr}</span></td><td data-label="Route">${routeHtml(j)}</td><td data-label="Driving">${fmtDur(t.drive)}${t.breaks?` <span class="muted small">+ ${t.breaks} break${t.breaks>1?'s':''}</span>`:''}</td><td data-label="Captain">${staffName(j.captain)}</td><td data-label="Cabin crew">${staffName(j.crew)}</td><td data-label="Coach">${j.coach?`<span class="mono">${j.coach}</span>`:pill('No coach','')}</td><td data-label="">${pub?jobStatus(j):`<span class="row end"><button class="btn sm" data-act="allocJobGo" data-id="${j.id}">Allocate</button><button class="btn sm" data-act="coach" data-id="${j.id}">${j.coach?'Change coach':'Assign coach'}</button></span>`}</td></tr>`}).join('');
+  return head+`<div class="tw"><table class="rt"><thead><tr><th>Job</th><th>Date</th><th>Time</th><th>Route</th><th>Driving</th><th>Captain</th><th>Cabin crew</th><th>Coach</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
   <p class="muted small">Trips over 2 hours get a 30-minute break for every 2 hours of driving. The break time is added to the end time.</p>`;
 }
 function vAlloc(){
   const jobs=sortJobs(S.jobs),pub=S.roster.published;
+  const head=pageHead('Pick a job, then pick a coach captain and a cabin crew member. Only staff who submitted availability are listed, lowest workload first.')+weekStrip()+(pub?bnr('ok','Roster for 16–22 Nov is published. Allocation is locked.'):'');
+  const any=S.users.some(u=>u.role==='staff'&&u.status==='active'&&getAvail(u.id,ALLOC_WEEK).submitted);
+  if(!any)return head+bnr('bad','<b>No staff are available for 16–22 Nov.</b> Nobody submitted availability before the Wednesday deadline, so nobody can be allocated.')+'<div class="card empty">There is nobody to allocate this week.</div>';
   if(!jobs.find(j=>j.id===S.ui.allocJob))S.ui.allocJob=(jobs.find(j=>!j.captain||!j.crew)||jobs[0]||{}).id;
-  const job=findJob(S.ui.allocJob);
-  const list=jobs.map(j=>`<button class="jl ${j.id===S.ui.allocJob?'on':''}" data-act="allocJob" data-id="${j.id}"><span class="code">${j.id}</span><span class="jl-m"><b>${fmtD(j.date)} · ${j.dep}</b><span class="muted">${SHORT[j.o]} → ${SHORT[j.d]}</span></span><span></span><span class="jl-s"><span class="dot ${j.captain?'ok':'miss'}">Captain ${j.captain?'✓':'needed'}</span><span class="dot ${j.crew?'ok':'miss'}">Crew ${j.crew?'✓':'needed'}</span></span></button>`).join('');
-  return pageHead('Pick a job, then pick a captain and a crew member. The system lists who is free and puts the lowest workload first.')+weekStrip()+(pub?bnr('ok','Roster for 16–22 Nov is published. Allocation is locked.'):'')+`<div class="alloc"><div class="card jlist"><h3 class="cardh">Jobs · 16–22 Nov</h3>${list}</div><div class="alloc-main">${job?allocDetail(job,pub):'<div class="card empty">No jobs yet. Create one on the Jobs page.</div>'}</div></div>`;
+  const job=findJob(S.ui.allocJob),issues=publishIssues();
+  const list=jobs.map(j=>`<button class="jl ${j.id===S.ui.allocJob?'on':''}" data-act="allocJob" data-id="${j.id}"><span class="code">${j.id}</span><span class="jl-m"><b>${fmtD(j.date)} · ${j.dep}</b><span class="muted">${SHORT[j.o]} → ${SHORT[j.d]}</span></span><span></span><span class="jl-s"><span class="dot ${j.captain?'ok':'miss'}">Captain ${j.captain?'✓':'needed'}</span><span class="dot ${j.crew?'ok':'miss'}">Crew ${j.crew?'✓':'needed'}</span>${S.unsaved[j.id]?'<span class="dot miss">Not saved</span>':''}</span></button>`).join('');
+  return head+(S.ui.showIssues&&!pub&&issues.length?bnr('bad',`<b>Cannot publish: incomplete jobs.</b> Fix these, then publish again:<ul>${issues.map(i=>`<li>${i}</li>`).join('')}</ul>`):'')+`<div class="alloc"><div class="card jlist"><h3 class="cardh">Jobs · 16–22 Nov</h3>${list||'<p class="empty">No jobs yet.</p>'}</div><div class="alloc-main">${job?allocDetail(job,pub):'<div class="card empty">No jobs yet. Create one on the Jobs page.</div>'}</div></div>`;
 }
 function allocDetail(job,pub){
   const t=timing(job),r=S.ui.allocRole;
   const slot=(k,l)=>{const u=job[k]&&user(job[k]);return `<div class="slotc ${r===k&&!pub?'act':''}"><div class="slotc-h"><span class="eyebrow">${l}</span>${u?pill('Assigned','ok'):pill('Needed','warn')}</div><div class="slotc-n">${u?esc(u.name):'<span class="muted">Not assigned</span>'}</div>${pub?'':`<div class="row"><button class="btn sm ${r===k?'primary':''}" data-act="allocRole" data-r="${k}" aria-pressed="${r===k}">${r===k?'Showing candidates':'Show candidates'}</button>${u?`<button class="btn sm danger" data-act="unassign" data-slot="${k}">Remove</button>`:''}</div>`}</div>`};
-  const pos=r==='captain'?'Coach Captain':'Crew';
+  const pos=r==='captain'?'Coach Captain':'Cabin Crew';
   const pool=S.users.filter(u=>u.role==='staff'&&u.position===pos).map(u=>({u,el:eligibility(u,job,r),w:workload(u)}));
   const excl=pool.filter(x=>['missed','inactive'].includes(x.el.code));
   const cands=pool.filter(x=>!excl.includes(x)).sort((a,b)=>(b.el.ok-a.el.ok)||(a.w-b.w));
-  const sugg=cands.filter(x=>x.el.ok&&!x.el.assigned).slice(0,3).map(x=>x.u.id);
+  const sugg=cands.filter(x=>x.el.ok&&!x.el.assigned&&!x.el.rule).slice(0,3).map(x=>x.u.id);
   const rows=cands.map(({u,el,w})=>{const d=getAvail(u.id,ALLOC_WEEK).days[job.date];return `<tr class="${el.ok?'':'dim'}">
     <td data-label="Compare"><input type="checkbox" id="cmp-${u.id}" aria-label="Compare ${esc(u.name)}" data-change="cmp" data-uid="${u.id}" ${S.ui.compare.includes(u.id)?'checked':''} style="width:18px;height:18px;accent-color:var(--navy)"></td>
     <td data-label="Staff"><span><b>${esc(u.name)}</b>${sugg.includes(u.id)?'<span class="chip-s">Suggested</span>':''}</span></td>
@@ -743,25 +770,28 @@ function allocDetail(job,pub){
     <td data-label="">${pub||el.assigned?'':`<button class="btn sm ${el.ok?'primary':''}" data-act="assign" data-uid="${u.id}" data-slot="${r}" ${el.ok?'':'disabled'}>Assign</button>`}</td></tr>`}).join('');
   return `<div class="card stack"><div class="jobhead"><span class="code">${job.id}</span><h2>${fmtD(job.date)} · ${job.dep}–${t.arr}</h2>${routeHtml(job)}</div>
     <p class="muted small">Driving ${fmtDur(t.drive)}${t.breaks?` with ${t.breaks} × 30-min break (2-hour driving rule)`:', no break needed'} · Departs ${STOPS[job.o]}</p>
-    <div class="slotgrid">${slot('captain','Coach Captain')}${slot('crew','Crew')}</div></div>
-  ${pub?'':`<section class="stack"><div class="ph"><h3 style="font-size:20px">${pos==='Crew'?'Crew':'Captain'} candidates</h3><span class="muted small">Workload = last week's hours + hours already given this week</span></div>
+    <div class="slotgrid">${slot('captain','Coach Captain')}${slot('crew','Cabin Crew')}</div>
+    ${pub?'':`<div class="row" style="justify-content:space-between;border-top:1px solid var(--line);padding-top:12px">${S.unsaved[job.id]?pill('Unsaved changes','warn'):pill('Saved','ok')}<button class="btn primary" data-act="saveAlloc" ${S.unsaved[job.id]?'':'disabled'}>Save allocation</button></div>`}</div>
+  ${pub?'':`<section class="stack"><div class="ph"><h3 style="font-size:20px">${r==='crew'?'Cabin crew':'Coach captain'} candidates</h3><span class="muted small">Workload = last week's hours + hours already given this week</span></div>
   <div class="tw"><table class="rt"><thead><tr><th>Compare</th><th>Staff</th><th>Workload</th><th>${fmtD(job.date)}</th><th>Status</th><th></th></tr></thead><tbody>${rows||'<tr><td>No candidates.</td></tr>'}</tbody></table></div>
   ${excl.length?`<p class="muted small">Not shown: ${excl.map(x=>`${esc(x.u.name)} (${x.el.code==='missed'?'missed the Wed deadline':'account inactive'})`).join(', ')}.</p>`:''}</section>
   <section class="card stack"><div class="ph"><h3 style="font-size:20px">Compare staff <span class="muted small" style="font-family:var(--f-body);font-weight:500">(${S.ui.compare.length}/3)</span></h3>${S.ui.compare.length?`<button class="link" data-act="cmpClear">Clear</button>`:''}</div>${comparePanel(job)}</section>`}`;
 }
 function comparePanel(job){
-  if(!S.ui.compare.length)return '<p class="muted small">Tick up to 3 staff in the list to compare their availability, location, hours and preferences side by side.</p>';
-  return `<div class="cmpgrid">${S.ui.compare.map(uid=>{const u=user(uid),slot=u.position==='Coach Captain'?'captain':'crew',el=eligibility(u,job,slot),d=getAvail(uid,ALLOC_WEEK).days[job.date],p=S.prefs[uid]||{routes:[],off:[]};
+  if(!S.ui.compare.length)return '<p class="muted small">Tick up to 3 staff in the list to see their availability and location for each day, their allocated hours and their preferences side by side.</p>';
+  return `<div class="cmpgrid">${S.ui.compare.map(uid=>{const u=user(uid),slot=u.position==='Coach Captain'?'captain':'crew',el=eligibility(u,job,slot),av=getAvail(uid,ALLOC_WEEK),p=getPrefs(uid,ALLOC_WEEK);
+  const wkl=weekDays(ALLOC_WEEK).map(iso=>{const d=av.days[iso];return `<li class="${iso===job.date?'on':''}"><span>${DOW[dt(iso).getUTCDay()]}</span><span>${d&&d.slots.length?d.slots.map(x=>x.s+'–'+x.e).join(', ')+' · '+(SHORT[d.loc]||'no location'):'<span class="muted">Not available</span>'}</span></li>`}).join('');
   return `<div class="cmp"><div class="cmp-h"><b>${esc(u.name)}</b><button class="iconbtn" style="width:30px;height:30px" data-act="cmpRemove" data-uid="${uid}" aria-label="Stop comparing ${esc(u.name)}">${icon('x','sm')}</button></div><span class="muted small">${u.position}</span>
-  <dl class="dl"><dt>Free on ${fmtD(job.date)}</dt><dd class="mono">${d&&d.slots.length?d.slots.map(s=>s.s+'–'+s.e).join(', '):'Not available'}</dd><dt>Starts the day at</dt><dd>${d&&d.loc?STOPS[d.loc]:'—'}</dd><dt>Hours</dt><dd>${u.lastWeek} h last week · ${hrs(assignedMins(uid))} this week</dd><dt>Prefers routes</dt><dd>${p.routes.length?p.routes.map(r=>'SG ⇄ '+SHORT[r]).join(', '):'No preference'}</dd><dt>Prefers shift</dt><dd>${SHIFTS[p.shift]||'No preference'}</dd><dt>Days off</dt><dd>${p.off.length?p.off.join(', '):'None'}</dd>${p.notes?`<dt>Note</dt><dd>${esc(p.notes)}</dd>`:''}</dl>
-  ${el.assigned?pill('Assigned','ok'):el.ok?`<button class="btn sm primary" data-act="assign" data-uid="${uid}" data-slot="${slot}">Assign as ${slot}</button>`:stCell(el)}</div>`}).join('')}</div>`;
+  <dl class="dl"><dt>Availability and location, ${weekLabel(ALLOC_WEEK)}</dt><dd><ul class="wkl">${wkl}</ul></dd><dt>Allocated hours</dt><dd>${hrs(assignedMins(uid))} this week · ${u.lastWeek} h last week</dd><dt>Preferred shift</dt><dd>${SHIFTS[p.shift]||'No preference'}</dd><dt>Preferred route type</dt><dd>${RTYPES[p.route]||'No preference'}</dd><dt>Prefers not to work</dt><dd>${p.off&&p.off.length?p.off.join(', '):'None'}</dd>${p.notes?`<dt>Note</dt><dd>${esc(p.notes)}</dd>`:''}</dl>
+  ${el.assigned?pill('Assigned','ok'):el.ok?`<button class="btn sm primary" data-act="assign" data-uid="${uid}" data-slot="${slot}">Assign as ${slot==='captain'?'coach captain':'cabin crew'}</button>`:stCell(el)}</div>`}).join('')}</div>`;
 }
 function vPublish(){
   const pub=S.roster.published,issues=publishIssues();
-  const rows=sortJobs(S.jobs).map(j=>`<tr><td data-label="Job"><span class="code">${j.id}</span></td><td data-label="When">${fmtD(j.date)} <span class="mono">${j.dep}</span></td><td data-label="Route">${routeHtml(j)}</td><td data-label="Captain">${j.captain?esc(user(j.captain).name):pill('Missing','bad')}</td><td data-label="Crew">${j.crew?esc(user(j.crew).name):pill('Missing','bad')}</td><td data-label="Coach">${j.coach?`<span class="mono">${j.coach}</span>`:pill('Missing','bad')}</td><td data-label="">${pub?'':`<button class="btn sm" data-act="coach" data-id="${j.id}">${j.coach?'Change coach':'Assign coach'}</button>`}</td></tr>`).join('');
-  return pageHead('Check every job has a captain, a crew member and a coach. Then publish so staff can see their jobs.',`<button class="btn primary" data-act="publish" ${pub?'disabled':''}>${icon('send','sm')}${pub?'Published':'Publish roster'}</button>`)+weekStrip()+
-  (pub?bnr('ok',`<b>Published ${esc(S.roster.at)}.</b> Assigned staff got a notification.`):S.ui.showIssues&&issues.length?bnr('bad',`<b>You can't publish yet.</b> Fix these first:<ul>${issues.map(i=>`<li>${i}</li>`).join('')}</ul>`):issues.length?bnr('info',`${issues.length} job${issues.length>1?'s are':' is'} not ready yet.`):bnr('ok','All jobs are ready to publish.'))+
-  `<div class="tw"><table class="rt"><thead><tr><th>Job</th><th>When</th><th>Route</th><th>Captain</th><th>Crew</th><th>Coach</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  const head=pageHead('Check every job has a coach captain and a cabin crew member, then publish. Staff then see their jobs on their home page.',`<button class="btn primary" data-act="publish" ${pub||!S.jobs.length?'disabled':''}>${icon('send','sm')}${pub?'Published':'Publish roster'}</button>`)+weekStrip();
+  if(!S.jobs.length)return head+'<div class="card empty">There are no jobs in 16–22 Nov yet, so there is nothing to publish.</div>';
+  const rows=sortJobs(S.jobs).map(j=>`<tr><td data-label="Job"><span class="code">${j.id}</span></td><td data-label="When">${fmtD(j.date)} <span class="mono">${j.dep}</span></td><td data-label="Route">${routeHtml(j)}</td><td data-label="Captain">${j.captain?esc(user(j.captain).name):pill('Missing','bad')}</td><td data-label="Cabin crew">${j.crew?esc(user(j.crew).name):pill('Missing','bad')}</td><td data-label="Coach">${j.coach?`<span class="mono">${j.coach}</span>`:pill('Not set','')}</td><td data-label="">${pub?'':`<button class="btn sm" data-act="coach" data-id="${j.id}">${j.coach?'Change coach':'Assign coach'}</button>`}</td></tr>`).join('');
+  return head+(pub?bnr('ok',`<b>Roster published successfully</b> (${esc(S.roster.at)}). A database snapshot was taken first. Assigned staff got a notification.`):issues.length?bnr('info',`${issues.length} problem${issues.length>1?'s':''} left. Publishing is blocked until every job has a coach captain and a cabin crew member, and every allocation is saved.`):bnr('ok','Every job has a coach captain and a cabin crew member. Ready to publish.'))+
+  `<div class="tw"><table class="rt"><thead><tr><th>Job</th><th>When</th><th>Route</th><th>Captain</th><th>Cabin crew</th><th>Coach</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 function vMTickets(){
   const f=S.ui.tf,list=S.tickets.filter(t=>f==='all'||t.status==='pending');
@@ -772,28 +802,28 @@ function vMTickets(){
   let detail='<div class="card empty">No tickets here.</div>';
   if(t){const u=user(t.uid),j=findJob(t.job),days=dayDiff(NOW().date,j.date);
     detail=`<div class="card stack"><div class="tk-h"><span class="row"><span class="code">${t.id}</span><h2 style="font-size:22px">${esc(u.name)} rejected ${j.id}</h2></span>${pill(word[t.status],tone[t.status])}</div>
-    <dl class="dl"><dt>Job</dt><dd>${fmtD(j.date)} · <span class="mono">${j.dep}–${timing(j).arr}</span> · ${routeHtml(j)}</dd><dt>Role</dt><dd>${j.captain===t.uid?'Coach Captain':j.crew===t.uid?'Crew':'Removed from job'}</dd><dt>Starts in</dt><dd>${days} days</dd><dt>Sent</dt><dd>${esc(t.at)}</dd><dt>Reason type</dt><dd>${esc(t.cat)}</dd></dl>
+    <dl class="dl"><dt>Job</dt><dd>${fmtD(j.date)} · <span class="mono">${j.dep}–${timing(j).arr}</span> · ${routeHtml(j)}</dd><dt>Role</dt><dd>${j.captain===t.uid?'Coach Captain':j.crew===t.uid?'Cabin Crew':'Taken off this job'}${j.replace?' '+pill('Job needs a replacement','warn'):''}</dd><dt>Starts in</dt><dd>${days} days</dd><dt>Sent</dt><dd>${esc(t.at)}</dd><dt>Reason type</dt><dd>${esc(t.cat)}</dd></dl>
     <div class="quote">${esc(t.text)}</div>
-    ${t.status==='pending'?`<form class="form" data-form="decide" novalidate><input type="hidden" name="id" value="${t.id}">
+    ${t.status==='pending'?`<form class="form" data-form="decide" novalidate><div class="err-banner" data-err="form"></div><input type="hidden" name="id" value="${t.id}">
       <fieldset><legend>Your decision</legend><div class="decide">${[['approved','Approve'],['rejected','Reject'],['closed','Close']].map(([v,l])=>`<label class="check"><input type="radio" name="dec" value="${v}"><span>${l}</span></label>`).join('')}</div><small class="err" data-err="dec"></small>
-      <p class="muted small">Approve takes ${esc(u.name.split(' ')[0])} off the job. Reject keeps them on it. Close ends the ticket with no change (for example, if it was sorted out in person).</p></fieldset>
+      <p class="muted small">Approve takes ${esc(u.name.split(' ')[0])} off the job and marks it as needing a replacement. Reject keeps them on it. Close ends the ticket with no change, for example if it was sorted out in person.</p></fieldset>
       <label class="field"><span>Reason</span><textarea id="dreason" name="reason" rows="3" maxlength="300" placeholder="${esc(u.name.split(' ')[0])} will see this reason."></textarea><small class="err" data-err="reason"></small></label>
       <div class="row end"><button class="btn primary">Save decision</button></div></form>`:`<div><span class="eyebrow">Your reason · ${esc(t.decision.at)}</span><p>${esc(t.decision.reason)}</p></div>`}</div>`}
-  return pageHead('Staff raise a ticket when they reject a job. Decide on each one and give a reason. The staff member is notified.')+`<div class="split"><div class="card" style="padding:0"><div style="padding:12px 12px 0"><div class="seg" role="group" aria-label="Filter"><button class="${f==='pending'?'on':''}" data-act="tf" data-f="pending">Pending</button><button class="${f==='all'?'on':''}" data-act="tf" data-f="all">All</button></div></div><div class="tlist">${items||'<p class="empty">Nothing pending.</p>'}</div></div>${detail}</div>`;
+  return pageHead('Staff raise a ticket when they reject a job. Talk to them first, then approve, reject or close it with a reason. They are notified.')+`<div class="split"><div class="card" style="padding:0"><div style="padding:12px 12px 0"><div class="seg" role="group" aria-label="Filter"><button class="${f==='pending'?'on':''}" data-act="tf" data-f="pending">Pending</button><button class="${f==='all'?'on':''}" data-act="tf" data-f="all">All</button></div></div><div class="tlist">${items||'<p class="empty">Nothing pending.</p>'}</div></div>${detail}</div>`;
 }
 
 /* ---------- admin views ---------- */
 function statusPill(u){return (u.status==='active'?pill('Active','ok'):u.status==='pending'?pill('Waiting for activation','warn'):pill('Inactive',''))+(u.locked?' '+pill('Locked','bad'):'')}
-function roleLabel(u){return u.role==='staff'?`Staff · ${u.position}`:u.role==='manager'?'Manager':'IT Admin'}
+function roleLabel(u){return u.role==='staff'?u.position:u.role==='manager'?'Manager':'IT Administrator'}
 function userRows(){
   const q=S.ui.uq.trim().toLowerCase();
   const list=S.users.filter(u=>(!q||u.name.toLowerCase().includes(q)||u.id.includes(q)||u.email.includes(q))&&(S.ui.ur==='all'||u.role===S.ui.ur)&&(S.ui.us==='all'||u.status===S.ui.us));
-  if(!list.length)return '<tr><td colspan="5" class="empty">No users match.</td></tr>';
-  return list.map(u=>`<tr><td data-label="Name"><span><b>${esc(u.name)}</b><br><span class="muted small">${esc(u.email)}</span></span></td><td data-label="Employee ID"><span class="mono">${u.id}</span></td><td data-label="Role">${roleLabel(u)}</td><td data-label="Status">${statusPill(u)}</td><td data-label=""><span class="row end">${u.status==='pending'?`<button class="btn sm" data-act="sendAct" data-uid="${u.id}">Send activation link</button>`:''}${u.id===me().id?'<span class="muted small">This is you</span>':`<button class="btn sm ${u.status==='inactive'?'':'danger'}" data-act="statusAsk" data-uid="${u.id}">${u.status==='inactive'?'Activate':'Deactivate'}</button>`}</span></td></tr>`).join('');
+  if(!list.length)return `<tr><td colspan="5" class="empty">${/^\d{6}$/.test(q)?`<b>No account found.</b> Employee ID ${esc(q)} does not exist. Check the number and search again.`:'No users match.'}</td></tr>`;
+  return list.map(u=>`<tr><td data-label="Name"><span><b>${esc(u.name)}</b><br><span class="muted small">${esc(u.email)}</span></span></td><td data-label="Employee ID"><span class="mono">${u.id}</span></td><td data-label="Role">${roleLabel(u)}</td><td data-label="Status">${statusPill(u)}</td><td data-label=""><span class="row end">${u.status==='pending'?`<button class="btn sm" data-act="sendAct" data-uid="${u.id}">Send invitation link</button>`:''}<button class="btn sm" data-act="acct" data-uid="${u.id}">Open account</button></span></td></tr>`).join('');
 }
 function vUsers(){
-  return pageHead('Every account in CoachRoster. Inactive accounts can\'t sign in.',`<button class="btn primary" data-act="nav" data-v="newuser">${icon('plus','sm')}New account</button>`)+`
-  <div class="filters"><label class="field sm"><span>Search</span><input id="uq" type="text" placeholder="Name, ID or email" value="${esc(S.ui.uq)}" data-input="userSearch"></label>
+  return pageHead('Every account in CoachRoster. Search by Employee ID, then open an account to change its status. Accounts are never deleted.',`<button class="btn primary" data-act="nav" data-v="newuser">${icon('plus','sm')}New account</button>`)+`
+  <div class="filters"><label class="field sm"><span>Search</span><input id="uq" type="text" placeholder="Employee ID, name or email" value="${esc(S.ui.uq)}" data-input="userSearch"></label>
   <label class="field sm"><span>Role</span><select id="ur" data-change="userFilter" data-k="ur">${opts([['all','All roles'],['staff','Staff'],['manager','Manager'],['admin','IT Admin']],S.ui.ur)}</select></label>
   <label class="field sm"><span>Status</span><select id="us" data-change="userFilter" data-k="us">${opts([['all','All'],['active','Active'],['pending','Waiting for activation'],['inactive','Inactive']],S.ui.us)}</select></label></div>
   <div class="tw"><table class="rt"><thead><tr><th>Name</th><th>Employee ID</th><th>Role</th><th>Status</th><th></th></tr></thead><tbody id="user-rows">${userRows()}</tbody></table></div>`;
@@ -801,16 +831,18 @@ function vUsers(){
 function nextFreeId(){let n=105903;while(user(String(n)))n++;return String(n)}
 function vNewUser(){
   if(S.ui.created){const u=user(S.ui.created);return `<div class="card stack" style="max-width:640px"><h2 style="font-size:24px;color:var(--ok)">Account created</h2>
-    <dl class="dl"><dt>Name</dt><dd>${esc(u.name)}</dd><dt>Employee ID</dt><dd class="mono">${u.id}</dd><dt>Email</dt><dd>${esc(u.email)}</dd><dt>Role</dt><dd>${roleLabel(u)}</dd><dt>Status</dt><dd>${statusPill(u)}</dd></dl>
-    ${u.status==='pending'?bnr('info',`${esc(u.name.split(' ')[0])} can't sign in yet. Send an activation link so they can set their own password. The link works for 72 hours.`):''}
-    <div class="row">${u.status==='pending'?`<button class="btn primary" data-act="sendAct" data-uid="${u.id}">${u.actSent?'Send link again':'Send activation link'}</button>`:''}<button class="btn" data-act="createAnother">Create another</button><button class="btn ghost" data-act="nav" data-v="users">Back to users</button></div>${u.actSent?`<p class="muted small">Link sent ${esc(u.actSent)}.</p>`:''}</div>`}
-  return pageHead('New staff get a 6-digit Employee ID. They set their own password from the activation email.',`<button class="btn ghost" data-act="nav" data-v="users">Back to users</button>`)+`<form class="card form" data-form="newuser" novalidate style="max-width:640px">
+    <dl class="dl"><dt>Employee ID</dt><dd class="mono">${u.id}</dd><dt>Full name</dt><dd>${esc(u.name)}</dd><dt>Company email</dt><dd>${esc(u.email)}</dd><dt>Mobile</dt><dd>${esc(u.mobile)}</dd><dt>Role</dt><dd>${roleLabel(u)}</dd><dt>Start date</dt><dd>${fmtLong(u.start)}</dd><dt>Status</dt><dd>${statusPill(u)}</dd></dl>
+    ${u.status==='pending'?bnr('info',`${esc(u.name.split(' ')[0])} can't sign in yet. Send an invitation link so they can set their own password. The link works for 72 hours.`):''}
+    <div class="row">${u.status==='pending'?`<button class="btn primary" data-act="sendAct" data-uid="${u.id}">${u.actSent?'Send link again':'Send invitation link'}</button>`:''}<button class="btn" data-act="createAnother">Create another</button><button class="btn ghost" data-act="nav" data-v="users">Back to users</button></div>${u.actSent?`<p class="muted small">Invitation sent ${esc(u.actSent)}.</p>`:''}</div>`}
+  return pageHead('Every field is required. The new user sets their own password from the invitation email.',`<button class="btn ghost" data-act="nav" data-v="users">Back to users</button>`)+`<form class="card form" data-form="newuser" novalidate style="max-width:640px">
   <div class="err-banner" data-err="form"></div>
+  <label class="field"><span>Employee ID</span><span class="row" style="flex-wrap:nowrap"><input id="nu-eid" name="eid" inputmode="numeric" maxlength="7" class="mono" placeholder="6 digits"><button type="button" class="btn" data-act="suggestId">Use next free ID</button></span><small class="err" data-err="eid"></small></label>
   <label class="field"><span>Full name</span><input id="nu-name" name="name" type="text" autocomplete="off"><small class="err" data-err="name"></small></label>
-  <label class="field"><span>Work email</span><input id="nu-email" name="email" type="email" autocomplete="off" placeholder="name@coachco.sg"><small class="err" data-err="email"></small></label>
-  <label class="field"><span>Employee ID</span><span class="row" style="flex-wrap:nowrap"><input id="nu-eid" name="eid" inputmode="numeric" maxlength="6" class="mono" placeholder="6 digits"><button type="button" class="btn" data-act="suggestId">Use next free ID</button></span><small class="err" data-err="eid"></small></label>
-  <label class="field"><span>Role</span><select id="nu-role" name="role" data-change="roleToggle"><option value="">Choose…</option>${opts([['staff','Staff'],['manager','Manager'],['admin','IT Admin']],'')}</select><small class="err" data-err="role"></small></label>
-  <label class="field" id="posField" hidden><span>Position</span><select id="nu-pos" name="position"><option value="">Choose…</option>${opts(['Coach Captain','Crew'],'')}</select><small class="err" data-err="position"></small></label>
+  <label class="field"><span>Company email</span><input id="nu-email" name="email" type="email" autocomplete="off" placeholder="name@coachco.sg"><small class="err" data-err="email"></small></label>
+  <label class="field"><span>Mobile number</span><input id="nu-mobile" name="mobile" type="text" inputmode="tel" placeholder="9123 4567"><small class="err" data-err="mobile"></small></label>
+  <label class="field"><span>Role</span><select id="nu-role" name="role"><option value="">Choose…</option>${opts(['Cabin Crew','Coach Captain','Manager','IT Administrator'],'')}</select><small class="err" data-err="role"></small></label>
+  <label class="field"><span>Employment start date</span><input id="nu-start" name="start" type="date"><small class="err" data-err="start"></small></label>
+  <fieldset><legend>Status</legend><div class="decide" style="grid-template-columns:1fr 1fr">${radios('status',{active:'Active',inactive:'Inactive'},'')}</div><small class="err" data-err="status"></small></fieldset>
   <div class="row end"><button class="btn primary">Create account</button></div></form>`;
 }
 function vResets(){
@@ -818,13 +850,13 @@ function vResets(){
   return pageHead('Staff who forgot their password, or got locked out, appear here. Send them a reset link. It works for 30 minutes.')+`<div class="tw"><table class="rt"><thead><tr><th>Staff</th><th>Employee ID</th><th>Asked</th><th>Status</th><th></th></tr></thead><tbody>${rows||'<tr><td colspan="5" class="empty">No reset requests.</td></tr>'}</tbody></table></div>`;
 }
 function vMaint(){
-  const list=S.maint.map(m=>`<tr><td data-label="Date">${fmtD(m.date)} 2026</td><td data-label="Window"><span class="mono">02:00–04:00 SGT</span></td><td data-label="Emailed">${esc(m.at)}</td><td data-label="Message">${esc(m.msg)}</td></tr>`).join('');
-  return pageHead('Updates run on Tuesdays, 02:00–04:00 SGT, when no coaches depart. Book at least 48 hours ahead. Every active user gets an email.')+`
-  <form class="card form" data-form="maint" novalidate style="max-width:640px">
-    <label class="field"><span>Date (must be a Tuesday)</span><input id="mdate" type="date" name="date" min="2026-11-04" value=""><small class="muted small">Next allowed date: Tue 10 Nov</small><small class="err" data-err="date"></small></label>
-    <div class="field"><span>Time window</span><div class="hint mono">02:00 – 04:00 SGT (fixed)</div></div>
+  const list=S.maint.map(m=>`<tr><td data-label="Date">${fmtD(m.date)} 2026</td><td data-label="Window"><span class="mono">${m.s}–${m.e} SGT</span></td><td data-label="Emailed">${esc(m.at)}</td><td data-label="Message">${esc(m.msg)}</td></tr>`).join('');
+  return pageHead('Updates may only run on Tuesdays, 02:00–04:00 SGT, when no coaches depart. Book at least 48 hours ahead. Every active user gets an email with the date and time.')+`
+  <form class="card form" data-form="maint" novalidate style="max-width:640px"><div class="err-banner" data-err="form"></div>
+    <label class="field"><span>Date</span><input id="mdate" type="date" name="date" value=""><small class="err" data-err="date"></small></label>
+    <div class="row" style="flex-wrap:nowrap"><label class="field" style="flex:1"><span>Start (SGT)</span><select id="mstart" name="s">${opts(HOURS,'02:00')}</select></label><label class="field" style="flex:1"><span>End (SGT)</span><select id="mend" name="e">${opts(HOURS,'04:00')}</select></label></div>
     <label class="field"><span>Message to users</span><textarea id="mmsg" name="msg" rows="3" maxlength="300">CoachRoster will be offline for a system update. Please submit availability before or after this window.</textarea><small class="err" data-err="msg"></small></label>
-    <div class="row end"><button class="btn primary">Schedule and email users</button></div></form>
+    <div class="row end"><button class="btn primary">Schedule maintenance</button></div></form>
   <section class="stack"><h3 style="font-size:20px">Scheduled</h3>${list?`<div class="tw"><table class="rt"><thead><tr><th>Date</th><th>Window</th><th>Emailed</th><th>Message</th></tr></thead><tbody>${list}</tbody></table></div>`:'<div class="card empty">Nothing scheduled.</div>'}</section>`;
 }
 const VIEWS={home:vHome,avail:vAvail,prefs:vPrefs,tickets:vMyTickets,dashboard:vDash,jobs:vJobs,allocate:vAlloc,publish:vPublish,mtickets:vMTickets,users:vUsers,newuser:vNewUser,resets:vResets,maint:vMaint};
@@ -841,9 +873,9 @@ const MODALS={
     const j=findJob(m.id),t=timing(j),u=me(),cap=j.captain===u.id,days=dayDiff(NOW().date,j.date),other=cap?j.crew:j.captain;
     const tk=S.tickets.find(x=>x.job===j.id&&x.uid===u.id&&x.status==='pending');
     if(m.step==='blocked')return{title:"You can't reject this job",tone:'bad',body:`<p>This job starts in <b>${days} day${days===1?'':'s'}</b> (${fmtD(j.date)}). Jobs can only be rejected at least 7 days ahead, so the manager has time to find someone else.</p><p>Please speak to Rachel Goh (Operations Manager) directly.</p>`,foot:`<button class="btn primary" data-act="closeModal">OK</button>`};
-    if(m.step===1)return{title:`Reject ${j.id}?`,form:'rej1',body:`<div class="steps"><span class="on"></span><span></span></div>${bnr('warn','Rejecting creates a ticket for your manager. They will approve, reject or close it, and you will get a notification with the reason.')}
-      <label class="check"><input type="checkbox" name="ack" id="ack"><span>I understand I am still on this job until my manager decides.</span></label><small class="err" data-err="ack"></small>`,foot:`<button type="button" class="btn" data-act="rejStep" data-s="0">Back</button><button class="btn primary">Continue</button>`};
-    if(m.step===2)return{title:`Why are you rejecting ${j.id}?`,form:'rej2',body:`<div class="steps"><span class="on"></span><span class="on"></span></div>
+    if(m.step===1)return{title:`Reject ${j.id}?`,form:'rej1',body:`<div class="steps"><span class="on"></span><span></span></div>${bnr('warn','<b>Please talk to your manager about this job first.</b> If you still want to reject it, a ticket goes to your manager. They will approve, reject or close it, and tell you why.')}
+      <label class="check"><input type="checkbox" name="ack" id="ack"><span>I have read this. I stay on this job until my manager decides.</span></label><small class="err" data-err="ack"></small>`,foot:`<button type="button" class="btn" data-act="rejCancel">Cancel</button><button class="btn primary">Continue</button>`};
+    if(m.step===2)return{title:`Why are you rejecting ${j.id}?`,form:'rej2',body:`<div class="steps"><span class="on"></span><span class="on"></span></div><div class="err-banner" data-err="form"></div>
       <label class="field"><span>Reason type</span><select id="rj-cat" name="cat"><option value="">Choose…</option>${opts(['Medical','Family','Personal','Other'],'')}</select><small class="err" data-err="cat"></small></label>
       <label class="field"><span>Details</span><textarea id="rj-text" name="text" rows="3" maxlength="300" placeholder="Tell your manager what happened."></textarea><small class="err" data-err="text"></small></label>`,foot:`<button type="button" class="btn" data-act="rejStep" data-s="1">Back</button><button class="btn danger solid">Send ticket</button>`};
     return{title:`${j.id} · ${fmtD(j.date)}`,body:`<div class="row">${routeHtml(j)}</div><dl class="dl"><dt>Time</dt><dd class="mono">${j.dep} → ${t.arr}</dd><dt>Driving</dt><dd>${fmtDur(t.drive)}${t.breaks?` + ${t.breaks} × 30-min break`:''}</dd><dt>From</dt><dd>${STOPS[j.o]}</dd><dt>To</dt><dd>${STOPS[j.d]}</dd><dt>Your role</dt><dd>${cap?'Coach Captain':'Crew'}</dd><dt>${cap?'Crew':'Captain'}</dt><dd>${other?esc(user(other).name):'Not set'}</dd><dt>Coach</dt><dd class="mono">${j.coach||'Not set yet'}</dd></dl>
@@ -855,13 +887,18 @@ const MODALS={
     <label class="field" style="flex:1"><span>Destination</span><select id="cj-d" name="d" data-change="cjobHint"><option value="">Choose…</option>${opts(Object.entries(STOPS),'')}</select><small class="err" data-err="d"></small></label></div>
     <div class="row" style="flex-wrap:nowrap"><label class="field" style="flex:1"><span>Date</span><select id="cj-date" name="date">${opts(weekDays(ALLOC_WEEK).map(d=>[d,fmtD(d)]),ALLOC_WEEK)}</select></label>
     <label class="field" style="flex:1"><span>Departs</span><select id="cj-dep" name="dep" data-change="cjobHint">${opts(TIMES,'08:00')}</select></label></div>
-    <div id="cj-hint" class="hint">Choose an origin and destination to see the trip time.</div>`,foot:`<button type="button" class="btn" data-act="closeModal">Cancel</button><button class="btn primary">Create job</button>`}),
-  coach:m=>{const j=findJob(m.id);return{title:j.coach?`Replace coach on ${j.id}`:`Assign coach to ${j.id}`,form:'coach',body:`<p class="muted">${fmtD(j.date)}, ${j.dep}–${timing(j).arr} · ${routeHtml(j)}</p>${j.coach?`<p>Current coach: <b class="mono">${j.coach}</b></p>`:''}
-    <label class="field"><span>Registration number</span><input id="co-reg" name="reg" type="text" class="mono" placeholder="SKC 1234 A" autocomplete="off" style="text-transform:uppercase"><small class="err" data-err="reg"></small></label>
-    <div><span class="eyebrow">Fleet · crossed out = busy at this time</span><div class="chips" style="margin-top:6px">${FLEET.map(r=>{const b=coachBusy(r,j);return `<button type="button" class="chipbtn ${b?'busy':''}" data-act="pickCoach" data-r="${r}" title="${b?'On '+b.id:'Free'}">${r}</button>`}).join('')}</div></div>`,foot:`<button type="button" class="btn" data-act="closeModal">Cancel</button><button class="btn primary">${j.coach?'Replace coach':'Assign coach'}</button>`}},
-  confirmPub:m=>{const staff=new Set(S.jobs.flatMap(j=>[j.captain,j.crew]));return{title:'Publish roster for 16–22 Nov?',body:`<p>${S.jobs.length} jobs. <b>${staff.size} staff</b> will get a notification with their jobs.</p>${bnr('warn','After publishing, this week is locked and the next week opens for planning.')}`,foot:`<button class="btn" data-act="closeModal">Cancel</button><button class="btn primary" data-act="doPublish">Publish</button>`}},
+    <div id="cj-hint" class="hint">Choose an origin and destination to see the trip time.</div>`,foot:`<button type="button" class="btn" data-act="cjobCancel">Cancel</button><button class="btn primary">Save job</button>`}),
+  coach:m=>{const j=findJob(m.id);
+    if(!S.fleet.length)return{title:'No coaches available',tone:'bad',body:'<p>No coaches are recorded in the system, so a coach cannot be assigned yet.</p>',foot:'<button class="btn primary" data-act="closeModal">OK</button>'};
+    if(j.coach&&!m.replace)return{title:`${j.id} already has a coach`,body:`<p>Current coach: <b class="mono">${j.coach}</b></p><p>Do you want to replace it?</p>`,foot:`<button class="btn" data-act="coachKeep">Keep ${j.coach}</button><button class="btn primary" data-act="coachReplace">Replace coach</button>`};
+    return{title:j.coach?`Replace coach on ${j.id}`:`Assign coach to ${j.id}`,form:'coach',body:`<div class="err-banner" data-err="form"></div><p class="muted">${fmtD(j.date)}, ${j.dep}–${timing(j).arr} · ${routeHtml(j)}</p>${j.coach?`<p>Current coach: <b class="mono">${j.coach}</b></p>`:''}
+    <label class="field"><span>Search by registration number</span><input id="co-reg" name="reg" type="text" class="mono" placeholder="SKC 1234 A" autocomplete="off" style="text-transform:uppercase"><small class="err" data-err="reg"></small></label>
+    <div><span class="eyebrow">Fleet · crossed out = busy at this time</span><div class="chips" style="margin-top:6px">${S.fleet.map(r=>{const b=coachBusy(r,j);return `<button type="button" class="chipbtn ${b?'busy':''}" data-act="pickCoach" data-r="${r}" title="${b?'On '+b.id:'Free'}">${r}</button>`}).join('')}</div></div>`,foot:`<button type="button" class="btn" data-act="closeModal">Cancel</button><button class="btn primary">Confirm coach</button>`}},
+  confirmPub:m=>{const staff=new Set(S.jobs.flatMap(j=>[j.captain,j.crew])),nc=S.jobs.filter(j=>!j.coach).map(j=>j.id);return{title:'Publish roster for 16–22 Nov?',body:`<p>${S.jobs.length} jobs. <b>${staff.size} staff</b> will see their jobs on their home page and get a notification.</p><p class="muted small">The system takes a database snapshot just before publishing, so the roster can be restored if anything goes wrong.</p>${nc.length?bnr('warn',`${nc.length} job${nc.length>1?'s have':' has'} no coach yet (${nc.join(', ')}). Staff will see "Coach not set" until you assign one.`):''}${bnr('info','After publishing, this week is locked.')}`,foot:`<button class="btn" data-act="closeModal">Cancel</button><button class="btn primary" data-act="doPublish">Publish</button>`}},
+  acct:m=>{const u=user(m.uid),self=u.id===me().id,cur=u.status==='inactive'?'inactive':'active';return{title:esc(u.name),form:self?null:'acct',body:`<div class="err-banner" data-err="form"></div><input type="hidden" name="uid" value="${u.id}"><dl class="dl"><dt>Employee ID</dt><dd class="mono">${u.id}</dd><dt>Full name</dt><dd>${esc(u.name)}</dd><dt>Company email</dt><dd>${esc(u.email)}</dd><dt>Mobile</dt><dd>${esc(u.mobile||'—')}</dd><dt>Role</dt><dd>${roleLabel(u)}</dd><dt>Start date</dt><dd>${u.start?fmtLong(u.start):'—'}</dd><dt>Status</dt><dd>${statusPill(u)}</dd></dl>
+    ${self?bnr('info','This is your own account. Another IT admin must change its status.'):`<label class="field"><span>Change status</span><select id="ac-status" name="status">${opts([['active','Active'],['inactive','Inactive']],cur)}</select></label><p class="muted small">Inactive accounts can't sign in. Accounts are never deleted, so their records are kept.</p>`}`,foot:self?'<button class="btn primary" data-act="closeModal">Close</button>':'<button type="button" class="btn" data-act="closeModal">Cancel</button><button class="btn primary">Save status</button>'}},
   status:m=>{const u=user(m.uid),off=u.status!=='inactive';return{title:off?`Deactivate ${esc(u.name)}?`:`Activate ${esc(u.name)}?`,tone:off?'bad':'',body:`<p>${off?`${esc(u.name)} won't be able to sign in. Their past records stay. ${u.role==='staff'?'They won\'t appear in allocation.':''}`:`${esc(u.name)} will be able to sign in again.`}</p>`,foot:`<button class="btn" data-act="closeModal">Cancel</button><button class="btn ${off?'danger solid':'primary'}" data-act="statusDo" data-uid="${u.id}">${off?'Deactivate':'Activate'}</button>`}},
-  confirmMaint:m=>{const n=S.users.filter(u=>u.status==='active').length;return{title:'Schedule maintenance?',body:`<dl class="dl"><dt>Date</dt><dd>${fmtD(m.date)} 2026</dd><dt>Time</dt><dd class="mono">02:00–04:00 SGT</dd></dl><p>All <b>${n} active users</b> will get this email:</p><div class="quote">${esc(m.msg)}</div>`,foot:`<button class="btn" data-act="closeModal">Cancel</button><button class="btn primary" data-act="doMaint">Schedule and email</button>`}},
+  confirmMaint:m=>{const n=S.users.filter(u=>u.status==='active').length;return{title:'Schedule maintenance?',body:`<dl class="dl"><dt>Date</dt><dd>${fmtD(m.date)} 2026</dd><dt>Time</dt><dd class="mono">${m.s}–${m.e} SGT</dd></dl><p>All <b>${n} active users</b> will get an email with the date, time and this message:</p><div class="quote">${esc(m.msg)}</div>`,foot:`<button class="btn" data-act="closeModal">Cancel</button><button class="btn primary" data-act="doMaint">Confirm</button>`}},
 };
 function renderModal(){
   const root=$('#modal-root'),m=S.modal;
@@ -877,7 +914,7 @@ function renderTest(){
   const root=$('#test-root'),unread=S.inbox.filter(m=>!m.seen).length;
   const fab=`<button class="fab ${S.session?'raised':''}" data-act="drawer" aria-label="Test tools">${icon('flask')}<span>Test tools</span>${unread?`<b class="badge">${unread}</b>`:''}</button>`;
   const sc=S.ui.scn!=null&&SCN[S.ui.scn];
-  const bar=sc?`<div class="scnbar" role="region" aria-label="Presenter"><button class="iconbtn" data-act="scnStep" data-d="-1" aria-label="Previous scenario" ${S.ui.scn===0?'disabled':''}>‹</button><div class="txt"><span class="small"><span class="tag">${S.ui.scn+1} / ${SCN.length} · ${sc.g}</span></span><b>${sc.t}</b><span class="e">${sc.e}</span></div><button class="iconbtn" data-act="scnStep" data-d="1" aria-label="Next scenario" ${S.ui.scn===SCN.length-1?'disabled':''}>›</button><button class="iconbtn" data-act="scnStop" aria-label="Stop presenting">${icon('x','sm')}</button></div>`:'';
+  const bar=sc?`<div class="scnbar" role="region" aria-label="Presenter"><button class="iconbtn" data-act="scnStep" data-d="-1" aria-label="Previous scenario" ${S.ui.scn===0?'disabled':''}>‹</button><div class="txt"><span class="small"><span class="tag">${S.ui.scn+1} / ${SCN.length}</span><span class="lbl">${sc.g.split(' ')[0]} · ${sc.s}</span>${sc.r.map(x=>`<span class="frtag">${x}</span>`).join('')}</span><b>${sc.t}</b><span class="e">${sc.e}</span></div><button class="iconbtn" data-act="scnStep" data-d="1" aria-label="Next scenario" ${S.ui.scn===SCN.length-1?'disabled':''}>›</button><button class="iconbtn" data-act="scnStop" aria-label="Stop presenting">${icon('x','sm')}</button></div>`:'';
   if(!S.ui.drawer){root.innerHTML=fab+bar;return}
   const sw=(k,l,d)=>`<label class="switch"><span><b>${l}</b><br><span class="muted small">${d}</span></span><input type="checkbox" data-change="testToggle" data-k="${k}" ${S.test[k]?'checked':''}></label>`;
   const mails=S.inbox.length?S.inbox.map(m=>`<div class="mail ${m.seen?'':'new'}"><button data-act="openMail" data-id="${m.id}"><b>${esc(m.subject)}</b><span class="muted small">To ${esc(m.to)} · ${esc(m.time)}</span></button>${S.ui.openMail===m.id?`<div class="mail-b"><p>${esc(m.body)}</p>${m.link?`<button class="btn sm primary" data-act="openLink" data-t="${m.link.token}">${m.link.type==='activate'?'Activate account':'Reset password'}</button><span class="muted small">Opening a link signs you out, like opening the email on another phone.</span>`:''}</div>`:''}</div>`).join(''):'<p class="muted small">No emails yet. Activation links, reset links and maintenance notices land here.</p>';
@@ -886,26 +923,27 @@ function renderTest(){
   <p class="muted small">This panel is not part of the app. It lets testers see emails and force error cases.</p>
   <section class="dsec"><h3>Inbox (${S.inbox.length})</h3>${mails}</section>
   <section class="dsec"><h3>Jump in as</h3><div class="row">${[['104233','Ahmad · Staff'],['200118','Rachel · Manager'],['300021','Kelvin · IT Admin']].map(x=>`<button class="btn sm" data-act="jump" data-uid="${x[0]}">${x[1]}</button>`).join('')}</div><span class="muted small">Skips the password and code. Use the real sign-in to test those.</span></section>
-  <section class="dsec"><h3>Force a situation</h3>${sw('afterDeadline','Availability deadline has passed','Moves the staff clock to Thu 5 Nov, 00:01.')}${sw('emailFail','Email server is down','Activation, reset and maintenance emails fail.')}${sw('publishFail','Publishing fails','The manager sees a publish error.')}${sw('linkExpired','Email links have expired','Any link you open shows the expired page.')}</section>
+  <section class="dsec"><h3>Force a situation</h3>${sw('afterDeadline','Availability deadline has passed','Moves the staff clock to Thu 5 Nov, 00:01.')}${sw('emailFail','Email server is down','Activation, reset and maintenance emails fail.')}${sw('publishFail','Database snapshot fails','Publishing stops with "Publish failed, please try again".')}${sw('serverFail','System errors when saving','Tickets, preferences, coach, decisions and account status fail to save. Tickets also fail to load.')}${sw('linkExpired','Email links have expired','Any link you open shows the expired page.')}</section>
   <section class="dsec"><h3>Actions</h3><div class="row"><button class="btn sm" data-act="timeout" ${S.session?'':'disabled'}>Session times out</button><button class="btn sm" data-act="autofill" ${S.roster.published?'disabled':''}>Fill all jobs (to test publish)</button><button class="btn sm danger" data-act="resetDemo">${S.ui.resetArm?'Click again to reset':'Reset all demo data'}</button></div></section>
-  <section class="dsec"><h3>Scenarios (${SCN.length})</h3><p class="muted small">Every main flow and alternate flow, ready to show. Each one resets the demo data first.</p><button class="btn primary" data-act="scn" data-i="${S.ui.scn!=null?S.ui.scn:0}">${S.ui.scn!=null?'Back to presenting':'Present all scenarios from #1'}</button>
-  ${[...new Set(SCN.map(x=>x.g))].map(g=>`<details class="scg" ${SCN.findIndex(x=>x.g===g)<=(S.ui.scn??-1)&&SCN.findLastIndex(x=>x.g===g)>=(S.ui.scn??-1)?'open':''}><summary>${g} <span class="muted small">(${SCN.filter(x=>x.g===g).length})</span></summary><div class="scl">${SCN.map((x,i)=>x.g===g?`<button class="scn-item ${S.ui.scn===i?'on':''}" data-act="scn" data-i="${i}"><span class="mono">${i+1}</span><span>${x.t}</span></button>`:'').join('')}</div></details>`).join('')}
+  <section class="dsec"><h3>Scenarios (${SCN.length})</h3><p class="muted small">Every use case step and alternate flow, labelled with its FR and NFR. Each one resets the demo data first.</p><button class="btn primary" data-act="scn" data-i="${S.ui.scn!=null?S.ui.scn:0}">${S.ui.scn!=null?'Back to presenting':'Present all scenarios from #1'}</button>
+  ${[...new Set(SCN.map(x=>x.g))].map(g=>`<details class="scg" ${SCN.findIndex(x=>x.g===g)<=(S.ui.scn??-1)&&SCN.findLastIndex(x=>x.g===g)>=(S.ui.scn??-1)?'open':''}><summary>${g} <span class="muted small">(${SCN.filter(x=>x.g===g).length})</span></summary><div class="scl">${SCN.map((x,i)=>x.g===g?`<button class="scn-item ${S.ui.scn===i?'on':''}" data-act="scn" data-i="${i}"><span class="mono">${i+1}</span><span><b>${x.s}</b> · ${x.t}${x.r.map(y=>`<span class="frtag">${y}</span>`).join('')}</span></button>`:'').join('')}</div></details>`).join('')}
   </section></aside>`;
 }
 
 /* ---------- actions ---------- */
 function signIn(u){S.session={uid:u.id};S.view=defaultView(u.role);S.auth={screen:'login'};S.ui.pop=null;S.ui.compare=[];render();window.scrollTo(0,0);toast(`Signed in as ${esc(u.name)}.`)}
-function fillAll(){let n=0;sortJobs(S.jobs).forEach(j=>{['captain','crew'].forEach(slot=>{if(j[slot])return;const pos=slot==='captain'?'Coach Captain':'Crew';const c=S.users.filter(u=>u.role==='staff'&&u.position===pos).filter(u=>eligibility(u,j,slot).ok).sort((a,b)=>workload(a)-workload(b))[0]||S.users.find(u=>u.role==='staff'&&u.status==='active'&&u.position===pos&&j.captain!==u.id&&j.crew!==u.id);if(c){j[slot]=c.id;n++}});if(!j.coach){const f=FLEET.find(r=>!coachBusy(r,j));if(f){j.coach=f;n++}}});return n}
+function fillAll(){let n=0;S.unsaved={};sortJobs(S.jobs).forEach(j=>{['captain','crew'].forEach(slot=>{if(j[slot])return;const pos=slot==='captain'?'Coach Captain':'Cabin Crew';const c=S.users.filter(u=>u.role==='staff'&&u.position===pos).filter(u=>{const e=eligibility(u,j,slot);return e.ok&&!e.rule&&!e.assigned}).sort((a,b)=>workload(a)-workload(b))[0]||S.users.find(u=>u.role==='staff'&&u.status==='active'&&u.position===pos&&j.captain!==u.id&&j.crew!==u.id);if(c){j[slot]=c.id;n++}});if(!j.coach){const f=S.fleet.find(r=>!coachBusy(r,j));if(f){j.coach=f;n++}}});return n}
 function publishNow(){S.roster={published:true,at:stamp()};const counts={};S.jobs.forEach(j=>[j.captain,j.crew].forEach(id=>counts[id]=(counts[id]||0)+1));Object.entries(counts).forEach(([id,n])=>notify(id,`Roster for 16–22 Nov is published. You have ${n} job${n>1?'s':''}.`,'home'));return Object.keys(counts).length}
+function newResetRequest(uid,why){const u=user(uid);if(!S.resets.find(r=>r.uid===uid&&r.status==='new')){S.resets.unshift({id:'R-'+(++S.seq.reset),uid,at:stamp(),status:'new'});S.users.filter(x=>x.role==='admin'&&x.status==='active').forEach(a=>notify(a.id,`${u.name} ${why}.`,'resets'));mail('All IT admins',`Password reset request: ${u.name}`,`${u.name} (${u.email}) ${why}. Open Reset requests in CoachRoster to send a reset link.`)}}
 function curWeekAvail(){return getAvail(me().id,S.ui.week)}
 const ACT={
   nav:el=>{if(el.dataset.v==='newuser')S.ui.created=null;go(el.dataset.v)},
   authGo:el=>{S.auth={screen:el.dataset.s};render()},
   togglePw:el=>{const i=el.parentElement.querySelector('input');i.type=i.type==='password'?'text':'password';el.textContent=i.type==='password'?'Show':'Hide'},
-  fill:el=>{$('#eid').value=el.dataset.id;$('#pw').value=PW;$('#pw').focus()},
+  fill:el=>{$('#email').value=el.dataset.id;$('#pw').value=PW;$('#pw').focus()},
   resendOtp:()=>toast('A new code was sent. (Test code is still '+OTP+'.)','info'),
-  lockedReset:()=>{const uid=S.auth.uid;if(!S.resets.find(r=>r.uid===uid&&r.status!=='done')){S.resets.unshift({id:'R-'+(++S.seq.reset),uid,at:stamp(),status:'new'});notify('300021',`${user(uid).name} is locked out and asked for a password reset.`,'resets')}S.auth={screen:'forgotSent'};render()},
-  badLinkReset:()=>{const uid=S.auth.uid;if(!S.resets.find(r=>r.uid===uid&&r.status==='new')){S.resets.unshift({id:'R-'+(++S.seq.reset),uid,at:stamp(),status:'new'});notify('300021',`${user(uid).name} asked for a new reset link.`,'resets')}S.auth={screen:'forgotSent'};render()},
+  lockedReset:()=>{newResetRequest(S.auth.uid,'is locked out and asked for a password reset');S.auth={screen:'forgotSent'};render()},
+  badLinkReset:()=>{S.auth={screen:'forgot'};render()},
   pop:el=>{S.ui.pop=S.ui.pop===el.dataset.p?null:el.dataset.p;render()},
   readAll:()=>{(S.notifs[me().id]||[]).forEach(n=>n.read=true);render()},
   openNotif:el=>{const n=(S.notifs[me().id]||[]).find(x=>x.id===+el.dataset.id);n.read=true;S.ui.pop=null;go(n.go||S.view)},
@@ -929,36 +967,42 @@ const ACT={
   openJob:el=>openModal({type:'sjob',id:el.dataset.id,step:0}),
   rejStart:()=>{const j=findJob(S.modal.id);S.modal.step=dayDiff(NOW().date,j.date)<7?'blocked':1;renderModal()},
   rejStep:el=>{S.modal.step=+el.dataset.s;renderModal()},
-  /* manager */
+  rejCancel:()=>{closeModal();toast('Cancelled. No ticket was created.','info')},
+  pweek:el=>{S.ui.pweek=el.dataset.m;render()},
   allocJob:el=>{S.ui.allocJob=el.dataset.id;const j=findJob(el.dataset.id);S.ui.allocRole=!j.captain||j.crew?'captain':'crew';render()},
   allocJobGo:el=>{S.ui.allocJob=el.dataset.id;const j=findJob(el.dataset.id);S.ui.allocRole=!j.captain||j.crew?'captain':'crew';go('allocate')},
   allocRole:el=>{S.ui.allocRole=el.dataset.r;render()},
-  assign:el=>{const job=findJob(S.ui.allocJob),u=user(el.dataset.uid),slot=el.dataset.slot,r=eligibility(u,job,slot);if(!r.ok){toast(esc(r.why),'bad');return}const prev=job[slot];job[slot]=u.id;if(slot==='captain'&&!job.crew)S.ui.allocRole='crew';render();toast(`${esc(u.name)} is now the ${slot} on ${job.id}${prev?` (replaced ${esc(user(prev).name)})`:''}.`)},
-  unassign:el=>{const job=findJob(S.ui.allocJob),u=user(job[el.dataset.slot]);job[el.dataset.slot]=null;S.ui.allocRole=el.dataset.slot;render();toast(`${esc(u.name)} removed from ${job.id}.`,'info')},
+  assign:el=>{const job=findJob(S.ui.allocJob),u=user(el.dataset.uid),slot=el.dataset.slot,r=eligibility(u,job,slot);if(!r.ok){toast(esc(r.why),'bad');return}const prev=job[slot];job[slot]=u.id;S.unsaved[job.id]=true;if(slot==='captain'&&!job.crew)S.ui.allocRole='crew';render();toast(`${esc(u.name)} added as ${slot==='captain'?'coach captain':'cabin crew'} on ${job.id}${prev?` (replacing ${esc(user(prev).name)})`:''}. Press Save allocation to keep it.`,'info')},
+  saveAlloc:()=>{const job=findJob(S.ui.allocJob),b=driveBreach(job);
+    if(b){openModal({type:'msg',tone:'bad',title:'Not saved: driving limit broken',text:`<b>${esc(b.u.name)}</b> (coach captain) would drive <b>${b.a.id}</b> ${b.a.dep}–${timing(b.a).arr} and then <b>${b.b.id}</b> ${b.b.dep}–${timing(b.b).arr} with only ${b.gap} minutes in between. A coach captain needs a 30-minute break after 2 hours of driving. Pick another captain, then save again.`});return}
+    delete S.unsaved[job.id];render();toast(`Allocation for ${job.id} saved. Allocated hours this week: ${[job.captain,job.crew].filter(Boolean).map(id=>`${esc(user(id).name)} ${hrs(assignedMins(id))}`).join(', ')||'none'}.`)},
+  unassign:el=>{const job=findJob(S.ui.allocJob),u=user(job[el.dataset.slot]);job[el.dataset.slot]=null;S.unsaved[job.id]=true;S.ui.allocRole=el.dataset.slot;render();toast(`${esc(u.name)} removed from ${job.id}. Press Save allocation to keep the change.`,'info')},
   cmpRemove:el=>{S.ui.compare=S.ui.compare.filter(x=>x!==el.dataset.uid);render()},
   cmpClear:()=>{S.ui.compare=[];render()},
   createJob:()=>openModal({type:'cjob'}),
+  cjobCancel:()=>{closeModal();toast('Cancelled. The job was not saved.','info')},
   coach:el=>openModal({type:'coach',id:el.dataset.id}),
+  coachKeep:()=>{const j=findJob(S.modal.id);closeModal();toast(`Kept ${j.coach} on ${j.id}.`,'info')},
+  coachReplace:()=>{S.modal.replace=true;renderModal()},
   pickCoach:el=>{const i=$('#co-reg');i.value=el.dataset.r;i.focus()},
-  publish:()=>{const is=publishIssues();if(is.length){S.ui.showIssues=true;render();toast(`Can't publish yet. ${is.length} job${is.length>1?'s are':' is'} not ready.`,'bad');return}openModal({type:'confirmPub'})},
+  publish:()=>{const is=publishIssues();if(is.length){S.ui.showIssues=true;const first=sortJobs(S.jobs).find(j=>!j.captain||!j.crew||S.unsaved[j.id]);if(first){S.ui.allocJob=first.id;S.ui.allocRole=!first.captain?'captain':'crew'}go('allocate');toast('Cannot publish: incomplete jobs. You are back on the allocation screen.','bad');return}openModal({type:'confirmPub'})},
   doPublish:()=>{
-    if(S.test.publishFail){openModal({type:'msg',tone:'bad',title:'Publish failed',text:'The roster was not published and nobody was notified. Check your connection and try again.',retry:'doPublish'});return}
-    const n=publishNow();S.modal=null;S.ui.showIssues=false;render();toast(`Roster published. ${n} staff notified.`);
+    if(S.test.publishFail){openModal({type:'msg',tone:'bad',title:'Publish failed, please try again',text:'The database snapshot failed, so the roster was not published and nobody was notified.',retry:'doPublish'});return}
+    const n=publishNow();S.modal=null;S.ui.showIssues=false;render();toast(`Roster published successfully. ${n} staff notified.`);
   },
-
   tf:el=>{S.ui.tf=el.dataset.f;render()},
-  tsel:el=>{S.ui.tsel=el.dataset.id;render()},
-  /* admin */
+  tsel:el=>{if(S.test.serverFail){openModal({type:'msg',tone:'bad',title:"Couldn't load the ticket",text:`The system could not load ${el.dataset.id}. You are back on the ticket list. Pick it again to retry.`});return}S.ui.tsel=el.dataset.id;render()},
+  acct:el=>openModal({type:'acct',uid:el.dataset.uid}),
   statusAsk:el=>openModal({type:'status',uid:el.dataset.uid}),
   statusDo:el=>{const u=user(el.dataset.uid),off=u.status!=='inactive';u.status=off?'inactive':'active';S.modal=null;render();toast(`${esc(u.name)} is now ${off?'inactive':'active'}.`)},
   suggestId:()=>{$('#nu-eid').value=nextFreeId()},
   createAnother:()=>{S.ui.created=null;render()},
   sendAct:el=>{
     const u=user(el.dataset.uid);
-    if(S.test.emailFail){openModal({type:'msg',tone:'bad',title:'Email not sent',text:`The mail server did not respond, so ${esc(u.name)} did not get the link. The account is still waiting for activation.`,retry:'sendAct',attrs:`data-uid="${u.id}"`});return}
+    if(S.test.emailFail){openModal({type:'msg',tone:'bad',title:'Email not sent',text:`The mail server did not respond, so ${esc(u.name)} did not get the invitation. The account is still waiting for activation.`,retry:'sendAct',attrs:`data-uid="${u.id}"`});return}
     S.inbox.forEach(m=>{if(m.link&&m.link.uid===u.id&&m.link.type==='activate')m.link.used=true});
-    mail(u.email,'Activate your CoachRoster account',`Hi ${u.name.split(' ')[0]}, IT admin made a CoachRoster account for you. Your Employee ID is ${u.id}. Set your password to activate it. This link works for 72 hours.`,{type:'activate',uid:u.id,token:token(),used:false});
-    u.actSent=stamp();S.modal=null;render();toast(`Activation link sent to ${esc(u.email)}. Open it from Test tools → Inbox.`);
+    mail(u.email,'You are invited to CoachRoster',`Hi ${u.name.split(' ')[0]}, IT admin made a CoachRoster account for you (Employee ID ${u.id}). Open this link to set your password and activate your account. The link works for 72 hours.`,{type:'activate',uid:u.id,token:token(),used:false});
+    u.actSent=stamp();S.modal=null;render();toast(`Invitation sent to ${esc(u.email)}. Open it from Test tools → Inbox.`);
   },
   sendReset:el=>{
     const r=S.resets.find(x=>x.id===el.dataset.id),u=user(r.uid);
@@ -970,12 +1014,11 @@ const ACT={
   doMaint:()=>{
     const m=S.modal,act=S.users.filter(u=>u.status==='active');
     if(S.test.emailFail){openModal({type:'msg',tone:'bad',title:'Email not sent',text:'The mail server did not respond. Maintenance was not scheduled, so users are not left without notice. Try again.',retry:'closeModal'});return}
-    S.maint.push({date:m.date,msg:m.msg,at:stamp()});S.maint.sort((a,b)=>a.date.localeCompare(b.date));
-    mail(`All active users (${act.length})`,`Planned maintenance: ${fmtD(m.date)}, 02:00–04:00 SGT`,m.msg);
-    act.forEach(u=>{if(u.id!==me().id)notify(u.id,`Planned maintenance on ${fmtD(m.date)}, 02:00–04:00 SGT. CoachRoster will be offline.`,null)});
-    S.modal=null;render();toast(`Maintenance booked for ${fmtD(m.date)}. ${act.length} users emailed.`);
+    S.maint.push({date:m.date,s:m.s,e:m.e,msg:m.msg,at:stamp()});S.maint.sort((a,b)=>a.date.localeCompare(b.date));
+    mail(`All active users (${act.length})`,`Planned maintenance: ${fmtD(m.date)}, ${m.s}–${m.e} SGT`,`CoachRoster will be offline on ${fmtD(m.date)} 2026 from ${m.s} to ${m.e} SGT. ${m.msg}`);
+    act.forEach(u=>{if(u.id!==me().id)notify(u.id,`Planned maintenance on ${fmtD(m.date)}, ${m.s}–${m.e} SGT. CoachRoster will be offline.`,null)});
+    S.modal=null;render();toast(`Maintenance saved for ${fmtD(m.date)}, ${m.s}–${m.e}. ${act.length} users emailed.`);
   },
-  /* test */
   drawer:()=>{S.ui.drawer=!S.ui.drawer;S.ui.resetArm=false;renderTest()},
   openMail:el=>{const id=+el.dataset.id;S.ui.openMail=S.ui.openMail===id?null:id;const m=S.inbox.find(x=>x.id===id);m.seen=true;save();renderTest()},
   openLink:el=>{
@@ -986,7 +1029,7 @@ const ACT={
     render();window.scrollTo(0,0);
   },
   jump:el=>{S.ui.drawer=false;S.modal=null;signIn(user(el.dataset.uid))},
-  timeout:()=>{S.session=null;S.modal=null;S.ui.drawer=false;S.auth={screen:'login',tone:'warn',msg:'You were signed out because the session timed out. Sign in again.'};render()},
+  timeout:()=>{const r=role();S.session=null;S.modal=null;S.ui.drawer=false;S.auth={screen:'login',tone:'warn',msg:r==='staff'?'Your session ended. Staff sessions end 24 hours after sign-in. Sign in again.':'Your session ended after 30 minutes with no activity. Sign in again.'};render()},
   autofill:()=>{const n=fillAll();S.ui.drawer=false;render();toast(`Filled ${n} empty slots. Sign in as Rachel and open Publish.`,'info')},
   scn:el=>runScenario(+el.dataset.i),
   scnStep:el=>runScenario(S.ui.scn+(+el.dataset.d)),
@@ -998,32 +1041,30 @@ const ACT={
 /* ---------- forms ---------- */
 const FORMS={
   login:(f,fd)=>{
-    const id=fd.get('eid').trim(),pw=fd.get('pw'),e={};
-    if(!/^\d{6}$/.test(id))e.eid='Enter your 6-digit Employee ID.';if(!pw)e.pw='Enter your password.';
+    const em=fd.get('email').trim().toLowerCase(),pw=fd.get('pw'),e={};
+    if(!EMAIL_RE.test(em))e.email='Enter your company email, like name@coachco.sg.';if(!pw)e.pw='Enter your password.';
     if(hasErr(f,e))return;
-    const u=user(id);
-    if(u&&u.locked){S.auth={screen:'locked',uid:id};render();return}
-    if(u&&u.status==='pending'){showErrors(f,{form:'This account is not activated yet. Use the activation link in your email to set a password.'});return}
+    const u=S.users.find(x=>x.email===em);
+    if(u&&u.locked){S.auth={screen:'locked',uid:u.id};render();return}
+    if(u&&u.status==='pending'){showErrors(f,{form:'This account is not activated yet. Open the invitation link in your email to set a password.'});return}
     if(!u||u.password!==pw){
-      if(u){u.fails=(u.fails||0)+1;if(u.fails>=5){u.locked=true;u.fails=0;notify('300021',`${u.name}'s account locked after 5 wrong passwords.`,'users');S.auth={screen:'locked',uid:id};render();return}save()}
+      if(u){u.fails=(u.fails||0)+1;if(u.fails>=5){u.locked=true;u.fails=0;S.users.filter(x=>x.role==='admin').forEach(a=>notify(a.id,`${u.name}'s account was locked for 15 minutes after 5 wrong passwords.`,'users'));S.auth={screen:'locked',uid:u.id};render();return}save()}
       const left=u?5-u.fails:0;
-      showErrors(f,{form:`Employee ID or password is wrong.${u?` ${left} ${left===1?'try':'tries'} left before the account locks.`:''}`});return;
+      showErrors(f,{form:`Email or password is wrong.${u?` ${left} ${left===1?'try':'tries'} left before the account locks for 15 minutes.`:''}`});return;
     }
-    if(u.status==='inactive'){showErrors(f,{form:'This account is inactive. Ask IT admin to activate it.'});return}
-    u.fails=0;
-    if(u.role!=='staff'){S.auth={screen:'twofa',uid:id,tries:0};render();return}
-    signIn(u);
+    if(u.status==='inactive'){showErrors(f,{form:'This account is inactive, so it cannot sign in. Ask IT admin if this is a mistake.'});return}
+    u.fails=0;signIn(u);
   },
   twofa:(f,fd)=>{const c=fd.get('code').trim();if(c!==OTP){S.auth.tries=(S.auth.tries||0)+1;if(S.auth.tries>=3){S.auth={screen:'login',tone:'warn',msg:'Too many wrong codes. Sign in again to get a new code.'};render();return}showErrors(f,{code:!/^\d{6}$/.test(c)?'Enter the 6-digit code.':`That code is wrong. ${3-S.auth.tries} ${3-S.auth.tries===1?'try':'tries'} left.`});return}signIn(user(S.auth.uid))},
-  forgot:(f,fd)=>{const id=fd.get('eid').trim();if(!/^\d{6}$/.test(id)){showErrors(f,{eid:'Enter your 6-digit Employee ID.'});return}const u=user(id);if(u&&!S.resets.find(r=>r.uid===id&&r.status==='new')){S.resets.unshift({id:'R-'+(++S.seq.reset),uid:id,at:stamp(),status:'new'});notify('300021',`${u.name} asked for a password reset.`,'resets')}S.auth={screen:'forgotSent'};render()},
+  forgot:(f,fd)=>{const em=fd.get('email').trim().toLowerCase();if(!EMAIL_RE.test(em)){showErrors(f,{email:'Enter your company email, like name@coachco.sg.'});return}const u=S.users.find(x=>x.email===em);if(u)newResetRequest(u.id,'asked for a password reset');S.auth={screen:'forgotSent'};render()},
   setpw:(f,fd)=>{
     const pw=fd.get('pw'),pw2=fd.get('pw2'),e={};
-    if(pw.length<12||!/[a-z]/i.test(pw)||!/\d/.test(pw))e.pw='Use at least 12 characters, with a letter and a number.';
+    if(pw.length<12)e.pw='Your password must be at least 12 characters. Enter another password.';
     else if(pw!==pw2)e.pw2="The passwords don't match.";
     if(hasErr(f,e))return;
     const L=findLink(S.auth.token),u=user(L.uid);L.used=true;u.password=pw;u.locked=false;u.fails=0;
     if(L.type==='activate')u.status='active';else{const r=S.resets.find(x=>x.id===L.rid);if(r)r.status='done'}
-    S.auth={screen:'login',tone:'ok',msg:L.type==='activate'?'Account activated. Sign in with your new password.':'Password saved. Sign in with your new password.',fill:u.id};render();
+    S.auth={screen:'login',tone:'ok',msg:L.type==='activate'?'Password saved. Your account is ready to use. Sign in with your new password.':'Password saved. Sign in with your new password.',fill:u.email};render();
   },
   slot:(f,fd)=>{
     const day=fd.get('day'),s=fd.get('s'),e=fd.get('e');
@@ -1037,67 +1078,80 @@ const FORMS={
   rej1:(f,fd)=>{if(!fd.get('ack')){showErrors(f,{ack:'Tick the box to continue.'});return}S.modal.step=2;renderModal()},
   rej2:(f,fd)=>{
     const cat=fd.get('cat'),text=fd.get('text').trim(),e={};
-    if(!cat)e.cat='Choose a reason type.';if(text.length<10)e.text='Write at least 10 characters so your manager understands.';
+    if(!cat)e.cat='Choose a reason type.';if(text.length<10)e.text='Enter a reason (at least 10 characters) so your manager understands.';
     if(hasErr(f,e))return;
+    if(S.test.serverFail){showErrors(f,{form:'The ticket could not be created because of a system error. Nothing was sent. Press Send ticket to try again.'});return}
     const j=findJob(S.modal.id),u=me(),id='T-0'+(S.seq.ticket++);
     S.tickets.unshift({id,uid:u.id,job:j.id,cat,text,at:stamp(),status:'pending'});
     notify(MANAGER,`${u.name} raised ticket ${id} for ${j.id}.`,'mtickets');
     openModal({type:'msg',tone:'ok',title:`Ticket ${id} sent`,text:`Rachel Goh will review it. You will get a notification with her decision and reason. Until then, you are still on ${j.id}.`});render();
   },
-  prefs:(f,fd)=>{const off=fd.getAll('off');if(off.length===7){showErrors(f,{off:"You can't prefer all 7 days off. Untick at least one."});return}S.prefs[me().id]={routes:fd.getAll('routes'),shift:fd.get('shift')||'any',off,notes:fd.get('notes').trim()};save();showErrors(f,{});toast('Preferences saved. Your manager will see them when allocating.')},
+  prefs:(f,fd)=>{const wk=fd.get('week'),off=fd.getAll('off'),a=getAvail(me().id,wk);
+    const bad=off.filter(dn=>{const d=a.days[addDays(wk,DAYS7.indexOf(dn))];return !(d&&d.slots.length)}).map(dn=>fmtD(addDays(wk,DAYS7.indexOf(dn))));
+    if(bad.length){showErrors(f,{off:`${joinAnd(bad)} ${bad.length>1?'have':'has'} no availability. You can only mark days you are available. Change your selection.`});return}
+    if(S.test.serverFail){showErrors(f,{form:'Your preferences were not saved because of a system error. Press Save preferences to try again.'});return}
+    Object.assign(getPrefs(me().id,wk),{shift:fd.get('shift')||'any',route:fd.get('route')||'any',off,notes:fd.get('notes').trim()});save();showErrors(f,{});toast(`Preferences for ${weekLabel(wk)} saved. Your manager sees them when allocating.`)},
   cjob:(f,fd)=>{
     const o=fd.get('o'),d=fd.get('d'),date=fd.get('date'),dep=fd.get('dep'),e={};
-    if(!o)e.o='Choose an origin.';if(!d)e.d='Choose a destination.';
+    if(!o)e.o='Choose an origin.';if(!d)e.d='Choose a destination.';if(!o||!d)e.form='Some required details are missing. Fill them in, or press Cancel.';
     if(o&&d&&o===d)e.d='Destination must be different from origin.';
     else if(o&&d&&!routeOf(o,d))e.form=`${SHORT[o]} → ${SHORT[d]} is not a scheduled route. Every route runs between Singapore and one stop.`;
     if(!Object.keys(e).length){const t=timing({o,d,dep});if(t.end>1439)e.form=`This trip would end after midnight (${fmtDur(t.total)} long). Pick an earlier departure.`}
     if(hasErr(f,e))return;
     const id='JB-'+(++S.seq.job);S.jobs.push({id,date,dep,o,d,captain:null,crew:null,coach:null});S.ui.allocJob=id;S.ui.allocRole='captain';
-    S.modal=null;render();toast(`${id} created for ${fmtD(date)}. Next, allocate staff.`);
+    S.modal=null;render();toast(`Job ${id} saved: ${fmtD(date)}, ${SHORT[o]} → ${SHORT[d]}, ${dep}–${timing({o,d,dep}).arr}.`);
   },
   coach:(f,fd)=>{
     const raw=fd.get('reg').toUpperCase().replace(/\s+/g,''),mt=raw.match(/^SKC(\d{4})([A-Z])$/),j=findJob(S.modal.id);
+    if(!raw){showErrors(f,{reg:'Type a registration number or pick a coach.'});return}
     if(!mt){showErrors(f,{reg:'Use the format SKC 1234 A.'});return}
     const reg=`SKC ${mt[1]} ${mt[2]}`;
-    if(!FLEET.includes(reg)){showErrors(f,{reg:`${reg} is not in the fleet. Check the number on the coach.`});return}
+    if(!S.fleet.includes(reg)){showErrors(f,{reg:`Registration number ${reg} was not found. Search again or cancel.`});return}
     if(reg===j.coach){showErrors(f,{reg:`${reg} is already on this job.`});return}
     const b=coachBusy(reg,j);if(b){showErrors(f,{reg:`${reg} is on ${b.id} at that time (${b.dep}–${timing(b).arr}). Pick another coach.`});return}
-    const prev=j.coach;j.coach=reg;S.modal=null;render();toast(prev?`${j.id}: coach changed from ${prev} to ${reg}.`:`${reg} assigned to ${j.id}.`);
+    if(S.test.serverFail){showErrors(f,{form:'The assignment was not saved because of a system error. Press Confirm coach to retry, or Cancel to quit.'});return}
+    const prev=j.coach;j.coach=reg;S.modal=null;render();toast(prev?`${j.id}: coach replaced. ${prev} is off, ${reg} is on.`:`Coach ${reg} assigned to ${j.id}.`);
   },
   decide:(f,fd)=>{
     const t=S.tickets.find(x=>x.id===fd.get('id')),dec=fd.get('dec'),reason=fd.get('reason').trim(),e={};
-    if(!dec)e.dec='Choose approve, reject or close.';if(reason.length<5)e.reason='Add a reason. The staff member will see it.';
+    if(!dec)e.dec='Choose approve, reject or close.';if(reason.length<5)e.reason='Enter a reason for your decision. The staff member will see it.';
     if(hasErr(f,e))return;
+    if(S.test.serverFail){showErrors(f,{form:'The decision was not saved because of a system error. Press Save decision to try again.'});return}
     t.status=dec;t.decision={reason,at:stamp()};const u=user(t.uid),j=findJob(t.job);
     let extra='';
-    if(dec==='approved'){if(j.captain===u.id)j.captain=null;if(j.crew===u.id)j.crew=null;extra=` ${esc(u.name)} is off ${j.id}. Find a replacement.`}
+    if(dec==='approved'){if(j.captain===u.id)j.captain=null;if(j.crew===u.id)j.crew=null;j.replace=true;extra=` ${j.id} now needs a replacement.`}
     notify(u.id,`Ticket ${t.id} for ${j.id} was ${dec}. Reason: ${reason}`,'tickets');
     render();toast(`Ticket ${t.id} ${dec}. ${esc(u.name)} was notified.${extra}`);
   },
   newuser:(f,fd)=>{
-    const name=fd.get('name').trim(),email=fd.get('email').trim().toLowerCase(),eid=fd.get('eid').trim(),r=fd.get('role'),pos=fd.get('position'),e={};
-    if(name.length<2)e.name='Enter the full name.';
-    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))e.email='Enter a valid email, like name@coachco.sg.';
-    else{const d=S.users.find(u=>u.email===email);if(d)e.email=`This email already belongs to ${esc(d.name)}.`}
-    if(!/^\d{6}$/.test(eid))e.eid='Employee ID must be exactly 6 digits.';
-    else{const d=user(eid);if(d)e.eid=`ID ${eid} is already used by ${esc(d.name)}. Try "Use next free ID".`}
-    if(!r)e.role='Choose a role.';if(r==='staff'&&!pos)e.position='Choose Coach Captain or Crew.';
+    const name=fd.get('name').trim(),email=fd.get('email').trim().toLowerCase(),mob=fd.get('mobile').replace(/[\s-]/g,'').replace(/^\+65/,''),eid=fd.get('eid').trim(),r=fd.get('role'),start=fd.get('start'),status=fd.get('status'),e={};
+    const missing=[!eid,!name,!email,!mob,!r,!start,!status].some(Boolean);
+    if(!eid)e.eid='Enter the Employee ID.';else if(!/^\d{6}$/.test(eid))e.eid='Employee ID must be exactly 6 digits. Enter a valid ID.';else{const d=user(eid);if(d)e.eid=`ID ${eid} is already used by ${esc(d.name)}. Enter a unique ID, or press "Use next free ID".`}
+    if(!name)e.name='Enter the full name.';
+    if(!email)e.email='Enter the company email.';else if(!EMAIL_RE.test(email))e.email='Enter a valid email, like name@coachco.sg.';else{const d=S.users.find(u=>u.email===email);if(d)e.email=`This email already belongs to ${esc(d.name)}.`}
+    if(!mob)e.mobile='Enter the mobile number.';else if(!/^[89]\d{7}$/.test(mob))e.mobile='Enter an 8-digit Singapore mobile number, like 9123 4567.';
+    if(!r)e.role='Choose a role.';if(!start)e.start='Pick the employment start date.';if(!status)e.status='Choose Active or Inactive.';
+    if(missing)e.form='Some fields are missing. Fill in every field.';
     if(hasErr(f,e))return;
-    S.users.push({id:eid,name,role:r,position:r==='staff'?pos:r==='manager'?'Operations Manager':'IT Admin',status:'pending',lastWeek:0,workedNov:0,email,password:null,fails:0,locked:false});
-    if(r==='staff')S.prefs[eid]={routes:[],shift:'any',off:[],notes:''};
-    S.ui.created=eid;render();window.scrollTo(0,0);toast(`Account created for ${esc(name)}.`);
+    const map={'Cabin Crew':['staff','Cabin Crew'],'Coach Captain':['staff','Coach Captain'],'Manager':['manager','Operations Manager'],'IT Administrator':['admin','IT Admin']}[r];
+    S.users.push({id:eid,name,role:map[0],position:map[1],status:status==='inactive'?'inactive':'pending',lastWeek:0,workedNov:0,email,mobile:mob.slice(0,4)+' '+mob.slice(4),start,password:null,fails:0,locked:false});
+    S.ui.created=eid;render();window.scrollTo(0,0);toast(`Account created for ${esc(name)} with ${r} access.`);
   },
+  acct:(f,fd)=>{const u=user(fd.get('uid')),ns=fd.get('status'),cur=u.status==='inactive'?'inactive':'active';
+    if(ns===cur){showErrors(f,{form:'Nothing changed. Pick a different status to save.'});return}
+    if(S.test.serverFail){showErrors(f,{form:'The new status was not saved because of a system error. Press Save status to try again.'});return}
+    u.status=ns==='inactive'?'inactive':(u.password?'active':'pending');S.modal=null;render();toast(`Status updated. ${esc(u.name)} is now ${ns}.`)},
   maint:(f,fd)=>{
-    const v=fd.get('date'),msg=fd.get('msg').trim(),e={},n=NOW();
+    const v=fd.get('date'),st=fd.get('s'),et=fd.get('e'),msg=fd.get('msg').trim(),e={},n=NOW();
     if(!v)e.date='Pick a date.';
-    else{const lead=dayDiff(n.date,v)*1440+120-toMin(n.time);
-      if(lead<0)e.date='That date has already passed.';
-      else if(dt(v).getUTCDay()!==2)e.date=`Maintenance can only run on a Tuesday. ${fmtD(v)} is a ${['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][dt(v).getUTCDay()]}.`;
-      else if(lead<2880)e.date='Book at least 48 hours ahead so users get notice.';
+    else{const a=toMin(st),b=toMin(et),lead=dayDiff(n.date,v)*1440+a-toMin(n.time);
+      if(lead<0)e.date='That time has already passed.';
+      else if(dt(v).getUTCDay()!==2||a<120||b>240||b<=a)e.form=`Maintenance is only allowed on Tuesdays between 02:00 and 04:00 SGT. You picked ${fmtD(v)}, ${st}–${et}.`;
+      else if(lead<2880)e.form=`Maintenance must be at least 48 hours away, so every user gets 48 hours' notice. ${fmtD(v)}, ${st} is only ${Math.floor(lead/60)} hours away.`;
       else if(S.maint.find(m=>m.date===v))e.date=`Maintenance is already booked for ${fmtD(v)}.`}
     if(msg.length<10)e.msg='Write a short message for users (at least 10 characters).';
     if(hasErr(f,e))return;
-    openModal({type:'confirmMaint',date:v,msg});
+    openModal({type:'confirmMaint',date:v,s:st,e:et,msg});
   },
 };
 
@@ -1109,17 +1163,18 @@ const CHANGES={
     if(o===d){h.className='hint bad';h.textContent='Origin and destination are the same.';return}
     if(!routeOf(o,d)){h.className='hint bad';h.textContent=`${SHORT[o]} → ${SHORT[d]} is not a scheduled route.`;return}
     const t=timing({o,d,dep:f.dep.value}),r=ROUTES[routeOf(o,d)];h.className='hint ok';h.innerHTML=`Scheduled route · ${r.daily}<br>Driving ${fmtDur(t.drive)}${t.breaks?` + ${t.breaks} × 30-min break`:''} · arrives <b class="mono">${t.end>1439?'after midnight':t.arr}</b>`},
-  roleToggle:el=>{el.form.querySelector('#posField').hidden=el.value!=='staff'},
+  roleToggle:()=>{},
   userFilter:el=>{S.ui[el.dataset.k]=el.value;$('#user-rows').innerHTML=userRows();save()},
   testToggle:el=>{S.test[el.dataset.k]=el.checked;render();toast(`${el.checked?'On':'Off'}: ${el.closest('label').querySelector('b').textContent}.`,'info')},
 };
 const INPUTS={
   userSearch:el=>{S.ui.uq=el.value;$('#user-rows').innerHTML=userRows();save()},
   count:el=>{$('#count').textContent=`${el.value.length}/200`},
-  pwRules:el=>{const v=el.value,r={len:v.length>=12,let:/[a-z]/i.test(v),num:/\d/.test(v)};document.querySelectorAll('#rules li').forEach(li=>li.classList.toggle('ok',r[li.dataset.r]))},
+  pwRules:el=>{document.querySelectorAll('#rules li').forEach(li=>li.classList.toggle('ok',el.value.length>=12))},
 };
 
 /* ---------- scenarios (presenter mode) ---------- */
+// Each scenario: g = group (use case), s = step in the use case, r = FR/NFR it shows, t = title, e = what should happen.
 const SC={
   as(uid,view,ui){S.session={uid};S.view=view;Object.assign(S.ui,ui||{})},
   auth(o){S.session=null;S.auth=o},
@@ -1127,102 +1182,155 @@ const SC={
   sub(name){const f=document.querySelector(`form[data-form="${name}"]`);if(f)f.requestSubmit()},
   clk(sel){const e=document.querySelector(sel);if(e)e.click()},
   see(sel){const e=document.querySelector(sel);if(e)e.scrollIntoView({block:'center'})},
-  pend(){S.users.push({id:'105903',name:'Hafiz Rahman',role:'staff',position:'Crew',status:'pending',lastWeek:0,workedNov:0,email:'hafiz.rahman@coachco.sg',password:null,fails:0,locked:false});S.prefs['105903']={routes:[],shift:'any',off:[],notes:''}},
-  link(type,uid,used){const tk='demo-'+type;S.inbox.unshift({id:++S.seq.mail,to:user(uid).email,subject:type==='activate'?'Activate your CoachRoster account':'Reset your CoachRoster password',body:type==='activate'?'Set your password to activate your account. This link works for 72 hours.':'Use this link to set a new password. It works for 30 minutes.',time:'Wed 4 Nov 14:00',link:{type,uid,token:tk,used:!!used},seen:true});return tk},
-  login(id,pw){SC.v('#eid',id);SC.v('#pw',pw);SC.sub('login')},
+  pend(){S.users.push({id:'105903',name:'Hafiz Rahman',role:'staff',position:'Cabin Crew',status:'pending',lastWeek:0,workedNov:0,email:'hafiz.rahman@coachco.sg',mobile:'9123 4567',start:'2026-11-16',password:null,fails:0,locked:false})},
+  link(type,uid,used,rid){const tk='demo-'+type;S.inbox.unshift({id:++S.seq.mail,to:user(uid).email,subject:type==='activate'?'You are invited to CoachRoster':'Reset your CoachRoster password',body:'',time:'Wed 4 Nov 14:00',link:{type,uid,token:tk,used:!!used,rid},seen:true});return tk},
+  login(em,pw){SC.v('#email',em);SC.v('#pw',pw);SC.sub('login')},
+  nu(eid,email,mob){SC.v('#nu-eid',eid);SC.v('#nu-name','Hafiz Rahman');SC.v('#nu-email',email||'hafiz.rahman@coachco.sg');SC.v('#nu-mobile',mob||'9123 4567');SC.v('#nu-role','Cabin Crew');SC.v('#nu-start','2026-11-16');SC.v('input[name=status][value=active]',true)},
   job1607(){S.jobs.push({id:'JB-1607',date:'2026-11-16',dep:'13:15',o:'SG',d:'SK',captain:null,crew:null,coach:null});S.seq.job=1607},
+  approve32(){const t=S.tickets.find(x=>x.id==='T-032'),j=findJob('JB-1516');t.status='approved';t.decision={reason:'Medical reason accepted. Get well soon.',at:'Thu 5 Nov 09:00'};j.captain=null;j.replace=true;notify('103377','Ticket T-032 for JB-1516 was approved. Reason: Medical reason accepted. Get well soon.','tickets')},
 };
-const AH='104233',RG='200118',KO='300021';
+const AH='104233',RG='200118',KO='300021',AHE='ahmad.faizal@coachco.sg';
+const G={si:'Sign-in and access',hm:'Home pages',u1:'UC-01 Create Job',u2:'UC-02 Submit Availability',u3:'UC-03 Edit Availability',u4:'UC-04 Set Job Preferences',u5:'UC-05 Raise Job-Rejection Ticket',u6:'UC-06 Allocate Jobs to Staff',u7:'UC-07 Assign Coach to Job',u8:'UC-08 Publish Weekly Roster',u9:'UC-09 Process Job-Rejection Ticket',u10:'UC-10 Create User Account',u11:'UC-11 Deactivate Account Status',u12:'UC-12 Schedule System Maintenance',u13:'UC-13 Change Password'};
 const SCN=[
- // Sign-in
- {g:'Sign-in',t:'Staff signs in with Employee ID',e:'Staff go straight to Home. No extra code needed.',go(){SC.auth({screen:'login'})},then(){SC.v('#eid',AH);SC.v('#pw',PW)}},
- {g:'Sign-in',t:'Wrong password',e:'Error message, and it shows how many tries are left before the account locks.',go(){SC.auth({screen:'login'})},then(){SC.login(AH,'wrong-pass')}},
- {g:'Sign-in',t:'5th wrong password locks the account',e:'Account locks. Only a password reset unlocks it.',go(){SC.auth({screen:'login'});user(AH).fails=4},then(){SC.login(AH,'wrong-pass')}},
- {g:'Sign-in',t:'Locked user asks for a reset',e:'The request goes to IT admin. Same message for every ID, so IDs stay secret.',go(){SC.auth({screen:'locked',uid:AH});user(AH).locked=true},then(){SC.clk('[data-act=lockedReset]')}},
- {g:'Sign-in',t:'Inactive account tries to sign in',e:'Sign-in refused. Only IT admin can activate the account.',go(){SC.auth({screen:'login'})},then(){SC.login('105902',PW)}},
- {g:'Sign-in',t:'New account not activated yet',e:'Sign-in refused until the user sets a password from the activation email.',go(){SC.pend();SC.auth({screen:'login'})},then(){SC.login('105903','anything12345')}},
- {g:'Sign-in',t:'Manager gets a 6-digit code',e:'Managers and IT admins need a second step because they can change rosters and accounts.',go(){SC.auth({screen:'twofa',uid:RG})}},
- {g:'Sign-in',t:'Wrong code',e:'Error with tries left. After 3 wrong codes, the user starts again.',go(){SC.auth({screen:'twofa',uid:RG})},then(){SC.v('#otp','111111');SC.sub('twofa')}},
- {g:'Sign-in',t:'Forgot password',e:'The user enters their Employee ID to ask IT admin for a reset link.',go(){SC.auth({screen:'forgot'})},then(){SC.v('#feid',AH)}},
- {g:'Sign-in',t:'Session timed out',e:'After a period of no activity, the user is signed out and must sign in again.',go(){SC.auth({screen:'login',tone:'warn',msg:'You were signed out because the session timed out. Sign in again.'})}},
- // Staff
- {g:'Staff',t:'Staff home',e:'Hours this month, next job, tickets and upcoming jobs on one screen.',go(){SC.as(AH,'home')}},
- {g:'Staff',t:'Notifications',e:'Reminders, roster published and ticket decisions. Tap one to go there.',go(){SC.as(AH,'home',{pop:'notif'})}},
- {g:'Staff',t:'Job details',e:'Time, route, driving and breaks, crew partner and coach.',go(){SC.as(AH,'home');S.modal={type:'sjob',id:'JB-1511',step:0}}},
- {g:'Staff',t:'Reject a job less than 7 days away',e:'Blocked. The manager needs at least 7 days to find a replacement.',go(){SC.as(AH,'home');S.modal={type:'sjob',id:'JB-1503',step:'blocked'}}},
- {g:'Staff',t:'Reject: warning not ticked',e:'The staff member must confirm they stay on the job until the manager decides.',go(){SC.as(AH,'home');S.modal={type:'sjob',id:'JB-1511',step:1}},then(){SC.sub('rej1')}},
- {g:'Staff',t:'Reject: no reason given',e:'A reason type and details are required.',go(){SC.as(AH,'home');S.modal={type:'sjob',id:'JB-1511',step:2}},then(){SC.sub('rej2')}},
- {g:'Staff',t:'Reject: ticket sent',e:'A ticket is created and the manager is notified.',go(){SC.as(AH,'home');S.modal={type:'sjob',id:'JB-1511',step:2}},then(){SC.v('#rj-cat','Family');SC.v('#rj-text','Family event that I cannot miss.');SC.sub('rej2')}},
- {g:'Staff',t:'Job with a pending ticket',e:'The job shows the ticket. The staff member cannot send a second one.',go(){S.tickets.unshift({id:'T-033',uid:AH,job:'JB-1511',cat:'Family',text:'Family event that I cannot miss.',at:'Wed 4 Nov 14:00',status:'pending'});SC.as(AH,'home');S.modal={type:'sjob',id:'JB-1511',step:0}}},
- {g:'Staff',t:'Availability for the week',e:'Time slots and start location per day. Due Wednesday 23:59.',go(){SC.as(AH,'avail')}},
- {g:'Staff',t:'Add a time slot',e:'Pick a day, start and end time.',go(){SC.as(AH,'avail');S.modal={type:'slot',day:'2026-11-20'}}},
- {g:'Staff',t:'Time slot overlaps',e:'Blocked. Slots on the same day cannot overlap.',go(){SC.as(AH,'avail');S.modal={type:'slot',day:'2026-11-16'}},then(){SC.v('#sl-s','10:00');SC.v('#sl-e','16:00');SC.sub('slot')}},
- {g:'Staff',t:'End time before start time',e:'Blocked. The end must be after the start.',go(){SC.as(AH,'avail');S.modal={type:'slot',day:'2026-11-18'}},then(){SC.v('#sl-s','14:00');SC.v('#sl-e','09:00');SC.sub('slot')}},
- {g:'Staff',t:'Day with no start location',e:'Submit is blocked until every day with slots has a location.',go(){SC.as(AH,'avail');getAvail(AH,ALLOC_WEEK).days['2026-11-20']={loc:'',slots:[{s:'06:00',e:'12:00'}]}},then(){ACT.submitAvail()}},
- {g:'Staff',t:'Availability submitted',e:'The manager can now see it. Staff can still edit until the deadline.',go(){SC.as(AH,'avail')},then(){ACT.submitAvail()}},
- {g:'Staff',t:'Edited after submitting',e:'Changes are not sent until the staff member resubmits.',go(){SC.as(AH,'avail');Object.assign(getAvail(AH,ALLOC_WEEK),{submitted:true,dirty:true,submittedAt:'Wed 4 Nov 09:10'})}},
- {g:'Staff',t:'Missed the Wednesday deadline',e:'The week is closed. This staff member will not get jobs that week.',go(){S.test.afterDeadline=true;SC.as(AH,'avail')}},
- {g:'Staff',t:'Week more than 5 weeks ahead',e:'Not open yet. Availability can only be added up to 5 weeks ahead.',go(){SC.as(AH,'avail',{week:'2026-12-14'})}},
- {g:'Staff',t:'Closed week (read only)',e:'Past weeks show what was sent and cannot be changed.',go(){SC.as(AH,'avail',{week:'2026-11-09'})}},
- {g:'Staff',t:'Preferences',e:'Preferred routes, shift and days off. The manager sees these when allocating.',go(){SC.as(AH,'prefs')}},
- {g:'Staff',t:'Preferences: all 7 days off',e:'Blocked. At least one day must be workable.',go(){SC.as(AH,'prefs')},then(){DAYS7.forEach(d=>SC.v(`input[name=off][value=${d}]`,true));SC.sub('prefs')}},
- {g:'Staff',t:'My tickets',e:'Each ticket shows its status and the manager\'s reason.',go(){SC.as(AH,'tickets')}},
- // Manager
- {g:'Manager',t:'Manager dashboard',e:'Who submitted, who missed the deadline, and staff over 40 hours in red.',go(){SC.as(RG,'dashboard')}},
- {g:'Manager',t:'Jobs for the week',e:'Every job with its route, driving time, breaks and staff.',go(){SC.as(RG,'jobs')}},
- {g:'Manager',t:'Create a job',e:'Origin and destination only. The system works out the trip time and breaks.',go(){SC.as(RG,'jobs');S.modal={type:'cjob'}},then(){SC.v('#cj-o','SG');SC.v('#cj-d','KL')}},
- {g:'Manager',t:'Create job: same origin and destination',e:'Blocked.',go(){SC.as(RG,'jobs');S.modal={type:'cjob'}},then(){SC.v('#cj-o','SG');SC.v('#cj-d','SG');SC.sub('cjob')}},
- {g:'Manager',t:'Create job: not a scheduled route',e:'Blocked. Every route runs between Singapore and one stop.',go(){SC.as(RG,'jobs');S.modal={type:'cjob'}},then(){SC.v('#cj-o','KL');SC.v('#cj-d','ML');SC.sub('cjob')}},
- {g:'Manager',t:'Create job: ends after midnight',e:'Blocked. The trip must finish the same day.',go(){SC.as(RG,'jobs');S.modal={type:'cjob'}},then(){SC.v('#cj-o','SG');SC.v('#cj-d','KL');SC.v('#cj-dep','22:00');SC.sub('cjob')}},
- {g:'Manager',t:'Allocate: top 3 lowest workload',e:'Free staff are listed lowest workload first. The top 3 are marked Suggested.',go(){SC.as(RG,'allocate',{allocJob:'JB-1602',allocRole:'captain'})}},
- {g:'Manager',t:'Staff who missed the deadline are left out',e:'They do not appear as candidates at all.',go(){SC.as(RG,'allocate',{allocJob:'JB-1602',allocRole:'captain'})},then(){SC.see('.alloc-main .tw + p')}},
- {g:'Manager',t:'Blocked: not available or already on a job',e:'Grey badge with the reason. The Assign button is disabled.',go(){SC.as(RG,'allocate',{allocJob:'JB-1602',allocRole:'captain'})},then(){SC.see('.alloc-main .tw')}},
- {g:'Manager',t:'Blocked: 2-hour driving rule',e:'Staff need a 30-minute break between jobs.',go(){SC.job1607();SC.as(RG,'allocate',{allocJob:'JB-1607',allocRole:'captain'})},then(){SC.see('.alloc-main .tw')}},
- {g:'Manager',t:'Warning: starts the day somewhere else',e:'Can still assign, but the manager sees the staff starts in another city.',go(){SC.as(RG,'allocate',{allocJob:'JB-1606',allocRole:'crew'})},then(){SC.see('.alloc-main .tw')}},
- {g:'Manager',t:'Compare up to 3 staff',e:'Availability, location, hours and preferences side by side.',go(){SC.as(RG,'allocate',{allocJob:'JB-1602',allocRole:'captain',compare:['104120','104288','104390']})},then(){SC.see('.cmpgrid')}},
- {g:'Manager',t:'Compare a 4th staff member',e:'Blocked. Maximum 3 at a time.',go(){SC.as(RG,'allocate',{allocJob:'JB-1602',allocRole:'captain',compare:['104120','104288','104390']})},then(){SC.see('.alloc-main .tw');SC.clk('#cmp-105233')}},
- {g:'Manager',t:'Assign a captain',e:'The job is updated and the crew list opens next.',go(){SC.as(RG,'allocate',{allocJob:'JB-1602',allocRole:'captain'})},then(){SC.clk('[data-act=assign][data-uid="104120"]')}},
- {g:'Manager',t:'Publish blocked',e:'Every job needs a captain, a crew member and a coach first.',go(){SC.as(RG,'publish')},then(){ACT.publish()}},
- {g:'Manager',t:'Assign a coach',e:'Type the registration number or pick from the fleet. Busy coaches are crossed out.',go(){SC.as(RG,'publish');S.modal={type:'coach',id:'JB-1602'}}},
- {g:'Manager',t:'Coach: wrong format',e:'Blocked. Format is SKC 1234 A.',go(){SC.as(RG,'publish');S.modal={type:'coach',id:'JB-1602'}},then(){SC.v('#co-reg','ABC123');SC.sub('coach')}},
- {g:'Manager',t:'Coach: not in the fleet',e:'Blocked. The number must match a real coach.',go(){SC.as(RG,'publish');S.modal={type:'coach',id:'JB-1602'}},then(){SC.v('#co-reg','SKC 9999 X');SC.sub('coach')}},
- {g:'Manager',t:'Coach: already busy',e:'Blocked. The coach is on another job at that time.',go(){SC.as(RG,'publish');S.modal={type:'coach',id:'JB-1602'}},then(){SC.v('#co-reg','SKC 1204 Z');SC.sub('coach')}},
- {g:'Manager',t:'Replace a coach',e:'A job that already has a coach can swap to another one.',go(){SC.as(RG,'publish');S.modal={type:'coach',id:'JB-1601'}}},
- {g:'Manager',t:'Publish: confirm',e:'Shows how many staff will be notified before publishing.',go(){fillAll();SC.as(RG,'publish');S.modal={type:'confirmPub'}}},
- {g:'Manager',t:'Publish failed',e:'Nothing is published and nobody is notified. The manager can try again.',go(){fillAll();S.test.publishFail=true;SC.as(RG,'publish')},then(){ACT.doPublish()}},
- {g:'Manager',t:'Roster published',e:'The week is locked and every assigned staff member is notified.',go(){fillAll();SC.as(RG,'publish')},then(){ACT.doPublish()}},
- {g:'Manager',t:'Staff sees the published roster',e:'Bala gets a notification and the new jobs appear on his home screen.',go(){fillAll();publishNow();SC.as('104871','home',{pop:'notif'})}},
- {g:'Manager',t:'Tickets to review',e:'Pending tickets with the staff member\'s reason.',go(){SC.as(RG,'mtickets')}},
- {g:'Manager',t:'Ticket: no decision or reason',e:'Blocked. The manager must pick a decision and give a reason.',go(){SC.as(RG,'mtickets')},then(){SC.sub('decide')}},
- {g:'Manager',t:'Ticket approved',e:'The staff member is taken off the job and notified with the reason.',go(){SC.as(RG,'mtickets',{tsel:'T-032'})},then(){SC.v('input[name=dec][value=approved]',true);SC.v('#dreason','Medical reason accepted. Get well soon.');SC.sub('decide')}},
- {g:'Manager',t:'Ticket rejected',e:'The staff member stays on the job and is notified with the reason.',go(){SC.as(RG,'mtickets',{tsel:'T-031'})},then(){SC.v('input[name=dec][value=rejected]',true);SC.v('#dreason','We are short of crew that weekend. Please keep this job.');SC.sub('decide')}},
- {g:'Manager',t:'Ticket closed',e:'Ends the ticket with no change, for example when it was sorted out in person.',go(){SC.as(RG,'mtickets',{tsel:'T-031'})},then(){SC.v('input[name=dec][value=closed]',true);SC.v('#dreason','Sorted out in person. Mei Ling found a swap.');SC.sub('decide')}},
- {g:'Manager',t:'Staff sees the decision',e:'Mei Ling sees the decision and the manager\'s reason.',go(){const t=S.tickets.find(x=>x.id==='T-031');t.status='rejected';t.decision={reason:'We are short of crew that weekend. Please keep this job.',at:'Thu 5 Nov 09:00'};notify('104618','Ticket T-031 for JB-1512 was rejected. Reason: We are short of crew that weekend. Please keep this job.','tickets');SC.as('104618','tickets')}},
- // IT Admin
- {g:'IT Admin',t:'All users',e:'Every account with its role and status. Search and filter.',go(){SC.as(KO,'users')}},
- {g:'IT Admin',t:'Search users',e:'Filters by name, ID or email as you type.',go(){SC.as(KO,'users')},then(){SC.v('#uq','tan')}},
- {g:'IT Admin',t:'Create an account',e:'Name, email, 6-digit Employee ID, role and position.',go(){SC.as(KO,'newuser',{created:null})}},
- {g:'IT Admin',t:'Create account: invalid details',e:'Bad email, ID not 6 digits, and no role are all caught.',go(){SC.as(KO,'newuser',{created:null})},then(){SC.v('#nu-name','Hafiz Rahman');SC.v('#nu-email','hafiz.rahman');SC.v('#nu-eid','10590');SC.sub('newuser')}},
- {g:'IT Admin',t:'Create account: email or ID already used',e:'Blocked. Every email and Employee ID must be unique.',go(){SC.as(KO,'newuser',{created:null})},then(){SC.v('#nu-name','Hafiz Rahman');SC.v('#nu-email','bala.subramaniam@coachco.sg');SC.v('#nu-eid',AH);SC.v('#nu-role','staff');SC.v('#nu-pos','Crew');SC.sub('newuser')}},
- {g:'IT Admin',t:'Account created',e:'The account waits for activation. It cannot sign in yet.',go(){SC.as(KO,'newuser',{created:null})},then(){SC.v('#nu-name','Hafiz Rahman');SC.v('#nu-email','hafiz.rahman@coachco.sg');SC.v('#nu-eid','105903');SC.v('#nu-role','staff');SC.v('#nu-pos','Crew');SC.sub('newuser')}},
- {g:'IT Admin',t:'Send activation link',e:'The new user gets an email. The link works for 72 hours.',go(){SC.pend();SC.as(KO,'newuser',{created:'105903'})},then(){SC.clk('[data-act=sendAct]')}},
- {g:'IT Admin',t:'Email server down',e:'The link is not sent. The admin can try again.',go(){SC.pend();S.test.emailFail=true;SC.as(KO,'newuser',{created:'105903'})},then(){SC.clk('[data-act=sendAct]')}},
- {g:'IT Admin',t:'New user activates the account',e:'Opened from the email. The user sets their own password.',go(){SC.pend();SC.auth({screen:'setpw',token:SC.link('activate','105903')})}},
- {g:'IT Admin',t:'Password too weak',e:'At least 12 characters, with a letter and a number.',go(){SC.pend();SC.auth({screen:'setpw',token:SC.link('activate','105903')})},then(){SC.v('#np','coach2026');SC.sub('setpw')}},
- {g:'IT Admin',t:'Passwords do not match',e:'Blocked. Both boxes must match.',go(){SC.pend();SC.auth({screen:'setpw',token:SC.link('activate','105903')})},then(){SC.v('#np','CoachRoster2026');SC.v('#np2','CoachRoster2025');SC.sub('setpw')}},
- {g:'IT Admin',t:'Account activated',e:'The user can now sign in with their new password.',go(){SC.pend();SC.auth({screen:'setpw',token:SC.link('activate','105903')})},then(){SC.v('#np','CoachRoster2026');SC.v('#np2','CoachRoster2026');SC.sub('setpw')}},
- {g:'IT Admin',t:'Link expired',e:'Reset links work for 30 minutes and activation links for 72 hours.',go(){SC.auth({screen:'linkBad',why:'expired',type:'reset',uid:'104812'})}},
- {g:'IT Admin',t:'Link already used',e:'Each link works once.',go(){SC.auth({screen:'linkBad',why:'used',type:'reset',uid:'104812'})}},
- {g:'IT Admin',t:'Deactivate an account',e:'The user can no longer sign in. Their records stay.',go(){SC.as(KO,'users');S.modal={type:'status',uid:'104745'}}},
- {g:'IT Admin',t:'Reset requests',e:'Staff who forgot their password or got locked out.',go(){user(AH).locked=true;S.resets.unshift({id:'R-3',uid:AH,at:'Wed 4 Nov 13:20',status:'new'});S.seq.reset=3;SC.as(KO,'resets')}},
- {g:'IT Admin',t:'Send reset link',e:'The user gets an email. The link works for 30 minutes.',go(){SC.as(KO,'resets')},then(){SC.clk('[data-act=sendReset]')}},
- {g:'IT Admin',t:'User sets a new password',e:'Saving the new password also unlocks the account.',go(){user('104812').locked=true;S.resets[0].status='sent';S.inbox.unshift({id:++S.seq.mail,to:user('104812').email,subject:'Reset your CoachRoster password',body:'',time:'Wed 4 Nov 14:00',link:{type:'reset',uid:'104812',token:'demo-reset',used:false,rid:'R-2'},seen:true});SC.auth({screen:'setpw',token:'demo-reset'})},then(){SC.v('#np','SitiCoach2026');SC.v('#np2','SitiCoach2026')}},
- {g:'IT Admin',t:'Maintenance',e:'Only Tuesdays, 02:00 to 04:00, booked at least 48 hours ahead.',go(){SC.as(KO,'maint')}},
- {g:'IT Admin',t:'Maintenance: not a Tuesday',e:'Blocked.',go(){SC.as(KO,'maint')},then(){SC.v('#mdate','2026-11-12');SC.sub('maint')}},
- {g:'IT Admin',t:'Maintenance: date already passed',e:'Blocked.',go(){SC.as(KO,'maint')},then(){SC.v('#mdate','2026-11-03');SC.sub('maint')}},
- {g:'IT Admin',t:'Maintenance: confirm',e:'Shows the email every active user will get.',go(){SC.as(KO,'maint')},then(){SC.v('#mdate','2026-11-10');SC.sub('maint')}},
- {g:'IT Admin',t:'Maintenance booked',e:'Every active user gets an email and a notification.',go(){SC.as(KO,'maint');S.modal={type:'confirmMaint',date:'2026-11-10',msg:'CoachRoster will be offline for a system update. Please submit availability before or after this window.'}},then(){ACT.doMaint()}},
- {g:'IT Admin',t:'Users see the maintenance notice',e:'The sign-in screen warns everyone before the update.',go(){S.maint=[{date:'2026-11-10',msg:'CoachRoster will be offline for a system update.',at:'Wed 4 Nov 14:00'}];SC.auth({screen:'login'})}},
+ // ---- Sign-in and access ----
+ {g:G.si,s:'Sign in',r:['NFR-08'],t:'Sign in with company email and password',e:'Everyone signs in with their company email and a password of at least 12 characters.',go(){SC.auth({screen:'login'})},then(){SC.v('#email',AHE);SC.v('#pw',PW)}},
+ {g:G.si,s:'Wrong password',r:['NFR-09'],t:'Wrong password',e:'Error, with the number of tries left before the account locks.',go(){SC.auth({screen:'login'})},then(){SC.login(AHE,'wrong-password')}},
+ {g:G.si,s:'5 wrong passwords',r:['NFR-09'],t:'Account locks for 15 minutes',e:'After 5 wrong passwords in a row, the account locks for 15 minutes.',go(){SC.auth({screen:'login'});user(AH).fails=4},then(){SC.login(AHE,'wrong-password')}},
+ {g:G.si,s:'Inactive account',r:['FR-22','NFR-16'],t:'Inactive account cannot sign in',e:'Sign-in is refused. The account still exists, it is just inactive.',go(){SC.auth({screen:'login'})},then(){SC.login('priya.nair@coachco.sg',PW)}},
+ {g:G.si,s:'Staff session ends',r:['NFR-10'],t:'Staff session ends after 24 hours',e:'Cabin crew and coach captains are signed out 24 hours after signing in.',go(){SC.auth({screen:'login',tone:'warn',msg:'Your session ended. Staff sessions end 24 hours after sign-in. Sign in again.'})}},
+ {g:G.si,s:'Manager session ends',r:['NFR-10'],t:'Manager and IT admin session ends after 30 minutes idle',e:'Managers and IT admins are signed out after 30 minutes with no activity.',go(){SC.auth({screen:'login',tone:'warn',msg:'Your session ended after 30 minutes with no activity. Sign in again.'})}},
+ // ---- Home pages ----
+ {g:G.hm,s:'Staff home',r:['FR-02','NFR-13','NFR-18'],t:'Staff landing page with allocated hours this month',e:'Shows total allocated hours for November, next job and upcoming jobs. Times are in SGT.',go(){SC.as(AH,'home')}},
+ {g:G.hm,s:'Notifications',r:['FR-07'],t:'Staff notifications',e:'Reminders, roster published and ticket outcomes. Tap one to open it.',go(){SC.as(AH,'home',{pop:'notif'})}},
+ {g:G.hm,s:'Manager home',r:['NFR-13'],t:'Manager dashboard',e:'Managers only see manager pages: dashboard, jobs, allocate, publish and tickets.',go(){SC.as(RG,'dashboard')}},
+ {g:G.hm,s:'IT admin home',r:['NFR-13'],t:'IT admin home',e:'IT admins only see admin pages: users, reset requests and maintenance.',go(){SC.as(KO,'users')}},
+ // ---- UC-01 ----
+ {g:G.u1,s:'Main 1–2',r:['FR-15'],t:'Open the job form',e:'Manager chooses Create job and the form opens.',go(){SC.as(RG,'jobs');S.modal={type:'cjob'}}},
+ {g:G.u1,s:'Main 3',r:['FR-15'],t:'Enter origin, destination and time',e:'The system shows the trip time, breaks and arrival time.',go(){SC.as(RG,'jobs');S.modal={type:'cjob'}},then(){SC.v('#cj-o','SG');SC.v('#cj-d','KL');SC.v('#cj-dep','07:00')}},
+ {g:G.u1,s:'Main 4–5',r:['FR-15'],t:'Job saved',e:'The new job is saved and a confirmation is shown.',go(){SC.as(RG,'jobs');S.modal={type:'cjob'}},then(){SC.v('#cj-o','SG');SC.v('#cj-d','KL');SC.v('#cj-dep','07:00');SC.sub('cjob')}},
+ {g:G.u1,s:'Alt 4a',r:['FR-15'],t:'Cancel before saving',e:'Nothing is saved. The manager is back on the jobs page.',go(){SC.as(RG,'jobs');S.modal={type:'cjob'}},then(){SC.v('#cj-o','SG');SC.v('#cj-d','KL');SC.clk('[data-act=cjobCancel]')}},
+ {g:G.u1,s:'Alt 4b',r:['FR-15'],t:'Required details missing',e:'Save is blocked and the missing details are shown.',go(){SC.as(RG,'jobs');S.modal={type:'cjob'}},then(){SC.sub('cjob')}},
+ {g:G.u1,s:'Alt 4b',r:['FR-15'],t:'Origin and destination are the same',e:'Save is blocked.',go(){SC.as(RG,'jobs');S.modal={type:'cjob'}},then(){SC.v('#cj-o','SG');SC.v('#cj-d','SG');SC.sub('cjob')}},
+ {g:G.u1,s:'Alt 4b',r:['FR-15'],t:'Not a scheduled route',e:'Blocked. Every route runs between Singapore and one stop.',go(){SC.as(RG,'jobs');S.modal={type:'cjob'}},then(){SC.v('#cj-o','KL');SC.v('#cj-d','ML');SC.sub('cjob')}},
+ {g:G.u1,s:'Alt 4b',r:['FR-15'],t:'Trip would end after midnight',e:'Blocked. The trip must finish on the same day.',go(){SC.as(RG,'jobs');S.modal={type:'cjob'}},then(){SC.v('#cj-o','SG');SC.v('#cj-d','KL');SC.v('#cj-dep','22:00');SC.sub('cjob')}},
+ // ---- UC-02 ----
+ {g:G.u2,s:'Main 1–3',r:['FR-01','NFR-18'],t:'Choose a work week',e:'Weeks up to 5 weeks ahead are shown, each with its Wednesday 23:59 deadline.',go(){SC.as(AH,'avail')}},
+ {g:G.u2,s:'Main 4',r:['FR-01'],t:'Add a time slot',e:'Pick a day, a start time and an end time.',go(){SC.as(AH,'avail');S.modal={type:'slot',day:'2026-11-20'}}},
+ {g:G.u2,s:'Main 5–7',r:['FR-01','FR-03'],t:'Availability submitted',e:'Every slot is valid and every day has a location, so it is saved. The manager can now see it.',go(){SC.as(AH,'avail')},then(){ACT.submitAvail()}},
+ {g:G.u2,s:'Alt 2a',r:['FR-01'],t:'Week more than 5 weeks ahead',e:'Availability cannot be submitted for this week yet.',go(){SC.as(AH,'avail',{week:'2026-12-14'})}},
+ {g:G.u2,s:'Alt 2a',r:['FR-01'],t:'Deadline has passed',e:'Availability can no longer be submitted. This staff member will not get jobs that week.',go(){S.test.afterDeadline=true;SC.as(AH,'avail')}},
+ {g:G.u2,s:'Alt 2b',r:['FR-01'],t:'Week already submitted',e:'The system says availability already exists and opens it for editing (UC-03).',go(){SC.as(AH,'avail',{week:'2026-11-23'})}},
+ {g:G.u2,s:'Alt 6a',r:['FR-01'],t:'Time slot overlaps another',e:'The slot is rejected. The staff member must correct it.',go(){SC.as(AH,'avail');S.modal={type:'slot',day:'2026-11-16'}},then(){SC.v('#sl-s','10:00');SC.v('#sl-e','16:00');SC.sub('slot')}},
+ {g:G.u2,s:'Alt 6a',r:['FR-01'],t:'Time slot is invalid',e:'The end time must be after the start time.',go(){SC.as(AH,'avail');S.modal={type:'slot',day:'2026-11-18'}},then(){SC.v('#sl-s','14:00');SC.v('#sl-e','09:00');SC.sub('slot')}},
+ {g:G.u2,s:'Alt 6b',r:['FR-03'],t:'A day has no location',e:'Submit is blocked until every day with slots has a location.',go(){SC.as(AH,'avail');getAvail(AH,ALLOC_WEEK).days['2026-11-20']={loc:'',slots:[{s:'06:00',e:'12:00'}]}},then(){ACT.submitAvail()}},
+ // ---- UC-03 ----
+ {g:G.u3,s:'Main 1–4',r:['FR-01','FR-03'],t:'Edit a submitted week',e:'The submitted slots and locations are shown. Staff change them before the deadline.',go(){SC.as(AH,'avail',{week:'2026-11-23'});const a=getAvail(AH,'2026-11-23');a.days['2026-11-27'].slots=[{s:'12:00',e:'22:00'}];a.dirty=true}},
+ {g:G.u3,s:'Main 5–7',r:['FR-01','FR-03'],t:'Changes saved',e:'The new availability replaces the old one, and a success message is shown.',go(){SC.as(AH,'avail',{week:'2026-11-23'});const a=getAvail(AH,'2026-11-23');a.days['2026-11-27'].slots=[{s:'12:00',e:'22:00'}];a.dirty=true},then(){ACT.submitAvail()}},
+ {g:G.u3,s:'Alt 2a',r:['FR-01'],t:'Deadline passed: read only',e:'Availability is shown read only, with a message that the deadline has passed.',go(){SC.as(AH,'avail',{week:'2026-11-09'})}},
+ {g:G.u3,s:'Alt 6a',r:['FR-01'],t:'Overlapping slot while editing',e:'The slot is rejected. The staff member must correct it.',go(){SC.as(AH,'avail',{week:'2026-11-23'});S.modal={type:'slot',day:'2026-11-23'}},then(){SC.v('#sl-s','10:00');SC.v('#sl-e','16:00');SC.sub('slot')}},
+ {g:G.u3,s:'Alt 6b',r:['FR-03'],t:'Location removed while editing',e:'Resubmit is blocked until the day has a location again.',go(){SC.as(AH,'avail',{week:'2026-11-23'});const a=getAvail(AH,'2026-11-23');a.days['2026-11-25'].loc='';a.dirty=true},then(){ACT.submitAvail()}},
+ // ---- UC-04 ----
+ {g:G.u4,s:'Main 1–3',r:['FR-04'],t:'Choose a week and preferences',e:'Preferred shift (day or night), route type (long or short) and days they would rather not work.',go(){SC.as(AH,'prefs')}},
+ {g:G.u4,s:'Main 4–6',r:['FR-04'],t:'Preferences saved',e:'Saved for that week and shown to the manager on the allocation page.',go(){SC.as(AH,'prefs')},then(){SC.sub('prefs')}},
+ {g:G.u4,s:'Alt 5a',r:['FR-04'],t:'Day without availability',e:'Only days with availability can be marked. The staff member must change the selection.',go(){SC.as(AH,'prefs')},then(){SC.v('input[name=off][value=Wed]',true);SC.sub('prefs')}},
+ {g:G.u4,s:'Alt 5b',r:['FR-04'],t:'Preferences fail to save',e:'An error is shown and the staff member can try again.',go(){S.test.serverFail=true;SC.as(AH,'prefs')},then(){SC.sub('prefs')}},
+ // ---- UC-05 ----
+ {g:G.u5,s:'Main 1',r:['FR-06'],t:'Open an assigned job',e:'The job details show, with a Reject this job button.',go(){SC.as(AH,'home');S.modal={type:'sjob',id:'JB-1511',step:0}}},
+ {g:G.u5,s:'Main 2–4',r:['FR-05'],t:'Warning: talk to your manager first',e:'The job is 7 or more days away, so the warning appears. The staff member must acknowledge it.',go(){SC.as(AH,'home');S.modal={type:'sjob',id:'JB-1511',step:1}},then(){SC.v('#ack',true)}},
+ {g:G.u5,s:'Main 5–6',r:['FR-06'],t:'Enter the reason',e:'A reason is required.',go(){SC.as(AH,'home');S.modal={type:'sjob',id:'JB-1511',step:2}},then(){SC.v('#rj-cat','Family');SC.v('#rj-text','Family event that I cannot miss.')}},
+ {g:G.u5,s:'Main 7–8',r:['FR-06','FR-08'],t:'Ticket created as Pending',e:'The ticket is saved as Pending and the manager is notified.',go(){SC.as(AH,'home');S.modal={type:'sjob',id:'JB-1511',step:2}},then(){SC.v('#rj-cat','Family');SC.v('#rj-text','Family event that I cannot miss.');SC.sub('rej2')}},
+ {g:G.u5,s:'Main 8',r:['FR-08'],t:'Manager is notified',e:'The manager gets a notification about the new ticket.',go(){S.tickets.unshift({id:'T-033',uid:AH,job:'JB-1511',cat:'Family',text:'Family event that I cannot miss.',at:'Wed 4 Nov 14:00',status:'pending'});notify(RG,'Ahmad Faizal raised ticket T-033 for JB-1511.','mtickets');SC.as(RG,'dashboard',{pop:'notif'})}},
+ {g:G.u5,s:'Alt 2a',r:['FR-06'],t:'Job is less than 7 days away',e:'The job can no longer be rejected. The staff member is told to contact their manager.',go(){SC.as(AH,'home');S.modal={type:'sjob',id:'JB-1503',step:0}},then(){ACT.rejStart()}},
+ {g:G.u5,s:'Alt 4a',r:['FR-05'],t:'Cancel at the warning',e:'No ticket is created.',go(){SC.as(AH,'home');S.modal={type:'sjob',id:'JB-1511',step:1}},then(){SC.clk('[data-act=rejCancel]')}},
+ {g:G.u5,s:'Main 4 check',r:['FR-05'],t:'Warning not acknowledged',e:'The staff member cannot continue until they tick the box.',go(){SC.as(AH,'home');S.modal={type:'sjob',id:'JB-1511',step:1}},then(){SC.sub('rej1')}},
+ {g:G.u5,s:'Alt 7a',r:['FR-06'],t:'No reason entered',e:'The system asks for a reason.',go(){SC.as(AH,'home');S.modal={type:'sjob',id:'JB-1511',step:2}},then(){SC.sub('rej2')}},
+ {g:G.u5,s:'Alt 8a',r:['FR-06'],t:'Ticket fails to save',e:'An error is shown. Nothing is sent. The staff member can try again.',go(){S.test.serverFail=true;SC.as(AH,'home');S.modal={type:'sjob',id:'JB-1511',step:2}},then(){SC.v('#rj-cat','Family');SC.v('#rj-text','Family event that I cannot miss.');SC.sub('rej2')}},
+ {g:G.u5,s:'Postcondition',r:['FR-06'],t:'Job stays assigned while the ticket is pending',e:'The job shows the pending ticket. The staff member stays on it until the manager decides.',go(){S.tickets.unshift({id:'T-033',uid:AH,job:'JB-1511',cat:'Family',text:'Family event that I cannot miss.',at:'Wed 4 Nov 14:00',status:'pending'});SC.as(AH,'home');S.modal={type:'sjob',id:'JB-1511',step:0}}},
+ // ---- UC-06 ----
+ {g:G.u6,s:'Main 1–2',r:['FR-09'],t:'One work week at a time',e:'Only 16–22 Nov can be planned. Other weeks are locked.',go(){SC.as(RG,'allocate',{allocJob:'JB-1602',allocRole:'captain'})}},
+ {g:G.u6,s:'Main 3',r:['FR-10'],t:'Staff who missed the deadline are left out',e:'They are not listed as candidates.',go(){SC.as(RG,'allocate',{allocJob:'JB-1602',allocRole:'captain'})},then(){SC.see('.alloc-main .tw + p')}},
+ {g:G.u6,s:'Main 3–4',r:['FR-10','FR-12'],t:'Pick a job and see available staff',e:'Free staff are listed lowest workload first. The top 3 are marked Suggested.',go(){SC.as(RG,'allocate',{allocJob:'JB-1602',allocRole:'captain'})},then(){SC.see('.alloc-main .tw')}},
+ {g:G.u6,s:'Main 5–6',r:['FR-11','FR-12'],t:'View up to 3 staff side by side',e:'Each shows availability and location for every day, allocated hours and preferences.',go(){SC.as(RG,'allocate',{allocJob:'JB-1602',allocRole:'captain',compare:['104120','104288','104390']})},then(){SC.see('.cmpgrid')}},
+ {g:G.u6,s:'Main 7',r:['FR-09'],t:'Assign a staff member to the job',e:'The captain is added. The change is not saved yet.',go(){SC.as(RG,'allocate',{allocJob:'JB-1602',allocRole:'captain'})},then(){SC.clk('[data-act=assign][data-uid="104120"]')}},
+ {g:G.u6,s:'Main 8–9',r:['FR-12','FR-13'],t:'Save the allocation',e:'Saved, allocated hours are updated and a confirmation is shown.',go(){const j=findJob('JB-1602');j.captain='104120';j.crew='105014';S.unsaved['JB-1602']=true;SC.as(RG,'allocate',{allocJob:'JB-1602'})},then(){ACT.saveAlloc()}},
+ {g:G.u6,s:'Alt 3a',r:['FR-10'],t:'No staff available for the week',e:'Nobody submitted availability, so a message says no staff are available.',go(){Object.values(S.avail).forEach(w=>{if(w[ALLOC_WEEK])w[ALLOC_WEEK].submitted=false});SC.as(RG,'allocate')}},
+ {g:G.u6,s:'Alt 6a',r:['FR-11'],t:'View a 4th staff member',e:'Blocked. Only 3 staff can be viewed at a time.',go(){SC.as(RG,'allocate',{allocJob:'JB-1602',allocRole:'captain',compare:['104120','104288','104390']})},then(){SC.see('.alloc-main .tw');SC.clk('#cmp-105233')}},
+ {g:G.u6,s:'Alt 9a',r:['FR-13'],t:'Save blocked: driving limit',e:'The save is blocked. It names the captain, the jobs and the driving period that break the rule.',go(){SC.job1607();const j=findJob('JB-1607');j.captain='104871';S.unsaved['JB-1607']=true;SC.as(RG,'allocate',{allocJob:'JB-1607',allocRole:'crew'})},then(){ACT.saveAlloc()}},
+ {g:G.u6,s:'Alt 9a (early warning)',r:['FR-13'],t:'Driving rule flagged in the list',e:'Bala would get under 30 minutes of rest, so he is flagged before the manager even saves.',go(){SC.job1607();SC.as(RG,'allocate',{allocJob:'JB-1607',allocRole:'captain'})},then(){SC.see('.alloc-main .tw')}},
+ {g:G.u6,s:'Main 3 (rules)',r:['FR-12'],t:'Staff who are not free are blocked',e:'Grey badge with the reason, such as not available or already on another job.',go(){SC.as(RG,'allocate',{allocJob:'JB-1602',allocRole:'captain'})},then(){SC.see('.alloc-main tr.dim')}},
+ {g:G.u6,s:'Main 3 (rules)',r:['FR-12'],t:'Staff starts the day somewhere else',e:'Can still be assigned, but the manager sees the start location.',go(){SC.as(RG,'allocate',{allocJob:'JB-1606',allocRole:'crew'})},then(){SC.see('.alloc-main .tw')}},
+ // ---- UC-07 ----
+ {g:G.u7,s:'Main 1–2',r:['FR-18'],t:'Jobs show whether they have a coach',e:'Each job in the week shows its coach, or "No coach".',go(){SC.as(RG,'jobs')}},
+ {g:G.u7,s:'Main 3–5',r:['FR-18'],t:'Pick a coach by registration number',e:'Type a registration number or pick from the fleet list.',go(){SC.as(RG,'jobs');S.modal={type:'coach',id:'JB-1602'}},then(){SC.v('#co-reg','SKC 3310 P')}},
+ {g:G.u7,s:'Main 6–7',r:['FR-18'],t:'Coach assigned',e:'Saved. The confirmation shows the job and the registration number.',go(){SC.as(RG,'jobs');S.modal={type:'coach',id:'JB-1602'}},then(){SC.v('#co-reg','SKC 3310 P');SC.sub('coach')}},
+ {g:G.u7,s:'Postcondition',r:['FR-18'],t:'Staff see the coach number',e:'The registration number appears on the staff member\'s home page.',go(){SC.as(AH,'home')},then(){SC.see('.jobrow')}},
+ {g:G.u7,s:'Alt 2a',r:['FR-18'],t:'No jobs in the week',e:'A message says there are no jobs to assign a coach to.',go(){S.jobs=[];SC.as(RG,'jobs')}},
+ {g:G.u7,s:'Alt 3a',r:['FR-18'],t:'Job already has a coach',e:'The current coach is shown and the manager is asked whether to replace it.',go(){SC.as(RG,'jobs');S.modal={type:'coach',id:'JB-1601'}}},
+ {g:G.u7,s:'Alt 3a2',r:['FR-18'],t:'Replace the coach',e:'The manager confirms and picks a new coach.',go(){SC.as(RG,'jobs');S.modal={type:'coach',id:'JB-1601',replace:true}},then(){SC.v('#co-reg','SKC 1207 B')}},
+ {g:G.u7,s:'Alt 4a',r:['FR-18'],t:'No coaches recorded',e:'A message says no coaches are available.',go(){S.fleet=[];SC.as(RG,'jobs');S.modal={type:'coach',id:'JB-1602'}}},
+ {g:G.u7,s:'Alt 5a',r:['FR-18'],t:'Registration number not found',e:'An error says the number was not found. The manager searches again or cancels.',go(){SC.as(RG,'jobs');S.modal={type:'coach',id:'JB-1602'}},then(){SC.v('#co-reg','SKC 9999 X');SC.sub('coach')}},
+ {g:G.u7,s:'Alt 5a',r:['FR-18'],t:'Wrong registration format',e:'The number must look like SKC 1234 A.',go(){SC.as(RG,'jobs');S.modal={type:'coach',id:'JB-1602'}},then(){SC.v('#co-reg','ABC123');SC.sub('coach')}},
+ {g:G.u7,s:'Main 5 (rule)',r:['FR-18'],t:'Coach is busy at that time',e:'Blocked. The coach is already on another job at the same time.',go(){SC.as(RG,'jobs');S.modal={type:'coach',id:'JB-1602'}},then(){SC.v('#co-reg','SKC 1204 Z');SC.sub('coach')}},
+ {g:G.u7,s:'Alt 7a',r:['FR-18'],t:'Assignment fails to save',e:'A message says it was not saved. The manager can retry or quit.',go(){S.test.serverFail=true;SC.as(RG,'jobs');S.modal={type:'coach',id:'JB-1602'}},then(){SC.v('#co-reg','SKC 3310 P');SC.sub('coach')}},
+ // ---- UC-08 ----
+ {g:G.u8,s:'Main 1',r:['FR-16','NFR-07'],t:'Request to publish',e:'The confirm box says a database snapshot is taken first.',go(){fillAll();SC.as(RG,'publish');S.modal={type:'confirmPub'}}},
+ {g:G.u8,s:'Main 2–5',r:['FR-14','FR-16','NFR-07'],t:'Roster published successfully',e:'Every job has staff, a snapshot is taken, and "Roster published successfully" is shown.',go(){fillAll();SC.as(RG,'publish')},then(){ACT.doPublish()}},
+ {g:G.u8,s:'Main 4',r:['FR-16','FR-02'],t:'Staff see their jobs',e:'Each job appears on the home page of the staff assigned to it, with a notification.',go(){fillAll();publishNow();SC.as('104871','home',{pop:'notif'})}},
+ {g:G.u8,s:'Alt 2a',r:['FR-14'],t:'Cannot publish: incomplete jobs',e:'Publishing is blocked and the manager is sent back to the allocation screen.',go(){SC.as(RG,'publish')},then(){ACT.publish()}},
+ {g:G.u8,s:'Alt 3a',r:['NFR-07'],t:'Database snapshot fails',e:'Publishing stops with "Publish failed, please try again".',go(){fillAll();S.test.publishFail=true;SC.as(RG,'publish')},then(){ACT.doPublish()}},
+ // ---- UC-09 ----
+ {g:G.u9,s:'Main 1–3',r:['FR-17'],t:'Open a pending ticket',e:'Shows the job, the staff member and their reason.',go(){SC.as(RG,'mtickets',{tsel:'T-032'})}},
+ {g:G.u9,s:'Alt 3a',r:['FR-17'],t:'Ticket fails to load',e:'An error is shown and the manager is back on the ticket list.',go(){S.test.serverFail=true;SC.as(RG,'mtickets',{tsel:'T-032'})},then(){SC.clk('[data-act=tsel][data-id="T-031"]')}},
+ {g:G.u9,s:'Main 4–5',r:['FR-17'],t:'Choose a decision and enter a reason',e:'Approve, reject or close, with a reason the staff member will see.',go(){SC.as(RG,'mtickets',{tsel:'T-032'})},then(){SC.v('input[name=dec][value=approved]',true);SC.v('#dreason','Medical reason accepted. Get well soon.')}},
+ {g:G.u9,s:'Alt 5a',r:['FR-17'],t:'No reason entered',e:'The system asks for a reason.',go(){SC.as(RG,'mtickets',{tsel:'T-032'})},then(){SC.v('input[name=dec][value=approved]',true);SC.sub('decide')}},
+ {g:G.u9,s:'Alt 6a',r:['FR-17','FR-07'],t:'Approve: job needs a replacement',e:'The staff member is taken off the job, the job is marked as needing a replacement, and they are notified.',go(){SC.as(RG,'mtickets',{tsel:'T-032'})},then(){SC.v('input[name=dec][value=approved]',true);SC.v('#dreason','Medical reason accepted. Get well soon.');SC.sub('decide')}},
+ {g:G.u9,s:'Alt 6a3',r:['FR-17'],t:'Manager sees the job to reallocate',e:'The dashboard lists jobs that need a replacement.',go(){SC.approve32();SC.as(RG,'dashboard')}},
+ {g:G.u9,s:'Alt 6b',r:['FR-17','FR-07'],t:'Reject: staff stays on the job',e:'The job stays assigned and the staff member is notified with the reason.',go(){SC.as(RG,'mtickets',{tsel:'T-031'})},then(){SC.v('input[name=dec][value=rejected]',true);SC.v('#dreason','We are short of crew that weekend. Please keep this job.');SC.sub('decide')}},
+ {g:G.u9,s:'Alt 6c',r:['FR-17','FR-07'],t:'Close the ticket',e:'The ticket is closed with the reason. The staff member is notified.',go(){SC.as(RG,'mtickets',{tsel:'T-031'})},then(){SC.v('input[name=dec][value=closed]',true);SC.v('#dreason','Sorted out in person. Mei Ling found a swap.');SC.sub('decide')}},
+ {g:G.u9,s:'Alt 6d',r:['FR-17'],t:'Decision fails to save',e:'An error is shown. The manager can try again.',go(){S.test.serverFail=true;SC.as(RG,'mtickets',{tsel:'T-032'})},then(){SC.v('input[name=dec][value=approved]',true);SC.v('#dreason','Medical reason accepted. Get well soon.');SC.sub('decide')}},
+ {g:G.u9,s:'Main 7',r:['FR-07'],t:'Decision on the staff landing page',e:'The staff member sees the outcome and the reason on their home page.',go(){const t=S.tickets.find(x=>x.id==='T-031');t.status='rejected';t.decision={reason:'We are short of crew that weekend. Please keep this job.',at:'Thu 5 Nov 09:00'};notify('104618','Ticket T-031 for JB-1512 was rejected. Reason: We are short of crew that weekend. Please keep this job.','tickets');SC.as('104618','home')},then(){SC.see('#tk-updates')}},
+ // ---- UC-10 ----
+ {g:G.u10,s:'Main 1–3',r:['FR-21'],t:'Fill in the account form',e:'Employee ID, full name, company email, mobile, role, start date and status.',go(){SC.as(KO,'newuser',{created:null})},then(){SC.nu('105903')}},
+ {g:G.u10,s:'Main 4–7',r:['FR-21'],t:'Account created',e:'The account is created with the access of the chosen role.',go(){SC.as(KO,'newuser',{created:null})},then(){SC.nu('105903');SC.sub('newuser')}},
+ {g:G.u10,s:'Main 8–9',r:['FR-24','NFR-12'],t:'Send the invitation link',e:'An invitation email is sent. The link works for 72 hours.',go(){SC.pend();SC.as(KO,'newuser',{created:'105903'})},then(){SC.clk('[data-act=sendAct]')}},
+ {g:G.u10,s:'Main 10–11',r:['FR-26'],t:'New user opens the link',e:'A form to set a password is shown. Nothing else can be changed here.',go(){SC.pend();SC.auth({screen:'setpw',token:SC.link('activate','105903')})}},
+ {g:G.u10,s:'Main 12–13',r:['FR-26','NFR-08'],t:'Password saved, account ready',e:'The password is saved and the account is ready to use.',go(){SC.pend();SC.auth({screen:'setpw',token:SC.link('activate','105903')})},then(){SC.v('#np','CoachRoster2026');SC.v('#np2','CoachRoster2026');SC.sub('setpw')}},
+ {g:G.u10,s:'Alt 5a',r:['FR-21'],t:'Missing fields',e:'The admin is asked to fill in every missing field.',go(){SC.as(KO,'newuser',{created:null})},then(){SC.sub('newuser')}},
+ {g:G.u10,s:'Alt 5b',r:['FR-21'],t:'Employee ID is not 6 digits',e:'The admin is asked to enter a valid 6-digit ID.',go(){SC.as(KO,'newuser',{created:null})},then(){SC.nu('10590');SC.sub('newuser')}},
+ {g:G.u10,s:'Alt 5b',r:['FR-21'],t:'Employee ID is already used',e:'The admin is asked to enter a unique ID.',go(){SC.as(KO,'newuser',{created:null})},then(){SC.nu(AH);SC.sub('newuser')}},
+ {g:G.u10,s:'Main 3 (checks)',r:['FR-21'],t:'Email already used, wrong mobile',e:'Each email must be unique. Mobile must be an 8-digit Singapore number.',go(){SC.as(KO,'newuser',{created:null})},then(){SC.nu('105903','bala.subramaniam@coachco.sg','12345');SC.sub('newuser')}},
+ {g:G.u10,s:'Alt 9a',r:['FR-24'],t:'Invitation email fails',e:'An error is shown. The admin can retry sending.',go(){SC.pend();S.test.emailFail=true;SC.as(KO,'newuser',{created:'105903'})},then(){SC.clk('[data-act=sendAct]')}},
+ {g:G.u10,s:'Alt 11a',r:['FR-26','NFR-12'],t:'Invitation link has expired',e:'A message says the link has expired (after 72 hours).',go(){SC.pend();SC.auth({screen:'linkBad',why:'expired',type:'activate',uid:'105903'})}},
+ {g:G.u10,s:'Alt 13a',r:['NFR-08'],t:'Password under 12 characters',e:'A message says the password must be at least 12 characters.',go(){SC.pend();SC.auth({screen:'setpw',token:SC.link('activate','105903')})},then(){SC.v('#np','coach2026');SC.sub('setpw')}},
+ {g:G.u10,s:'Precondition',r:['FR-26'],t:'Not activated yet, cannot sign in',e:'Until the password is set, the new account cannot sign in.',go(){SC.pend();SC.auth({screen:'login'})},then(){SC.login('hafiz.rahman@coachco.sg','anything12345')}},
+ // ---- UC-11 ----
+ {g:G.u11,s:'Main 1',r:['FR-22'],t:'Search by Employee ID',e:'The admin searches for the account.',go(){SC.as(KO,'users')},then(){SC.v('#uq','104745')}},
+ {g:G.u11,s:'Main 2–3',r:['FR-22'],t:'Account details',e:'All account fields are shown, with an option to change the status.',go(){SC.as(KO,'users');S.modal={type:'acct',uid:'104745'}}},
+ {g:G.u11,s:'Main 4–6',r:['FR-22','NFR-16'],t:'Set to inactive and save',e:'The status is updated and a confirmation is shown. The account is not deleted.',go(){SC.as(KO,'users');S.modal={type:'acct',uid:'104745'}},then(){SC.v('#ac-status','inactive');SC.sub('acct')}},
+ {g:G.u11,s:'Alt 2a',r:['FR-22'],t:'No account found',e:'An error says the Employee ID does not exist.',go(){SC.as(KO,'users')},then(){SC.v('#uq','999999')}},
+ {g:G.u11,s:'Alt 5a',r:['FR-22'],t:'New status fails to save',e:'An error is shown. The admin can retry.',go(){S.test.serverFail=true;SC.as(KO,'users');S.modal={type:'acct',uid:'104745'}},then(){SC.v('#ac-status','inactive');SC.sub('acct')}},
+ // ---- UC-12 ----
+ {g:G.u12,s:'Main 1–3',r:['FR-27','NFR-02'],t:'Propose a maintenance window',e:'A Tuesday, between 02:00 and 04:00 SGT.',go(){SC.as(KO,'maint')},then(){SC.v('#mdate','2026-11-10')}},
+ {g:G.u12,s:'Main 4–5',r:['FR-27'],t:'Confirm the schedule',e:'A confirmation prompt shows the date, time and message.',go(){SC.as(KO,'maint')},then(){SC.v('#mdate','2026-11-10');SC.sub('maint')}},
+ {g:G.u12,s:'Main 6–7',r:['FR-27','FR-28','NFR-03'],t:'Maintenance saved, all users emailed',e:'Saved, and every active user is emailed at least 48 hours before.',go(){SC.as(KO,'maint');S.modal={type:'confirmMaint',date:'2026-11-10',s:'02:00',e:'04:00',msg:'CoachRoster will be offline for a system update. Please submit availability before or after this window.'}},then(){ACT.doMaint()}},
+ {g:G.u12,s:'Main 7',r:['FR-28'],t:'The email states the date and time',e:'The maintenance email gives the date and the time window.',go(){SC.as(KO,'maint');S.modal={type:'confirmMaint',date:'2026-11-10',s:'02:00',e:'04:00',msg:'Please submit availability before or after this window.'}},then(){ACT.doMaint();S.ui.drawer=true;S.ui.openMail=S.inbox[0].id;S.inbox[0].seen=true;renderTest()}},
+ {g:G.u12,s:'Alt 4a',r:['NFR-02'],t:'Not a Tuesday',e:'Rejected. The error states the allowed window.',go(){SC.as(KO,'maint')},then(){SC.v('#mdate','2026-11-12');SC.sub('maint')}},
+ {g:G.u12,s:'Alt 4a',r:['NFR-02'],t:'Outside 02:00–04:00',e:'Rejected. The error states the allowed window.',go(){SC.as(KO,'maint')},then(){SC.v('#mdate','2026-11-10');SC.v('#mstart','01:00');SC.v('#mend','03:00');SC.sub('maint')}},
+ {g:G.u12,s:'Alt 4b',r:['NFR-03'],t:'Less than 48 hours away',e:'Rejected. The error states the 48-hour notice rule.',go(){S.test.now={date:'2026-11-09',time:'10:00'};SC.as(KO,'maint')},then(){SC.v('#mdate','2026-11-10');SC.sub('maint')}},
+ {g:G.u12,s:'Postcondition',r:['NFR-03'],t:'Users see the notice on sign-in',e:'The sign-in page warns everyone before the update.',go(){S.maint=[{date:'2026-11-10',s:'02:00',e:'04:00',msg:'CoachRoster will be offline for a system update.',at:'Wed 4 Nov 14:00'}];SC.auth({screen:'login'})}},
+ // ---- UC-13 ----
+ {g:G.u13,s:'Main 1–3',r:['FR-19'],t:'Forgot password: enter company email',e:'The user enters their company email and submits the request.',go(){SC.auth({screen:'forgot'})},then(){SC.v('#femail',AHE)}},
+ {g:G.u13,s:'Main 4–5',r:['FR-19','FR-23'],t:'Request submitted',e:'IT admins are emailed and the user sees a confirmation.',go(){SC.auth({screen:'forgot'})},then(){SC.v('#femail',AHE);SC.sub('forgot')}},
+ {g:G.u13,s:'Main 4, 6',r:['FR-23'],t:'IT admin is notified',e:'The request appears on the IT admin page with a notification.',go(){newResetRequest(AH,'asked for a password reset');SC.as(KO,'resets',{pop:'notif'})}},
+ {g:G.u13,s:'Main 7–8',r:['FR-20','NFR-11'],t:'Send the reset link',e:'The link is emailed to the user. It expires after 30 minutes.',go(){SC.as(KO,'resets')},then(){SC.clk('[data-act=sendReset]')}},
+ {g:G.u13,s:'Main 9–11',r:['FR-25'],t:'Open the link and enter a new password',e:'A form for a new password is shown.',go(){S.resets[0].status='sent';SC.auth({screen:'setpw',token:SC.link('reset','104812',false,'R-2')})},then(){SC.v('#np','SitiCoach2026');SC.v('#np2','SitiCoach2026')}},
+ {g:G.u13,s:'Main 12–13',r:['FR-25'],t:'New password saved',e:'Saved, with a confirmation. The user can sign in with it.',go(){S.resets[0].status='sent';SC.auth({screen:'setpw',token:SC.link('reset','104812',false,'R-2')})},then(){SC.v('#np','SitiCoach2026');SC.v('#np2','SitiCoach2026');SC.sub('setpw')}},
+ {g:G.u13,s:'Alt 4a',r:['FR-19'],t:'Invalid company email',e:'The user is asked to enter their company email.',go(){SC.auth({screen:'forgot'})},then(){SC.v('#femail','ahmad@');SC.sub('forgot')}},
+ {g:G.u13,s:'Alt 9a',r:['FR-20'],t:'Reset email fails to send',e:'An error is shown to the IT admin, who can retry.',go(){S.test.emailFail=true;SC.as(KO,'resets')},then(){SC.clk('[data-act=sendReset]')}},
+ {g:G.u13,s:'Alt 10a',r:['FR-25','NFR-11'],t:'Reset link has expired',e:'A message says the link has expired (after 30 minutes).',go(){SC.auth({screen:'linkBad',why:'expired',type:'reset',uid:'104812'})}},
+ {g:G.u13,s:'Alt 10a2',r:['FR-19'],t:'Ask for a new reset link',e:'The user goes back to step 1 and submits a new request.',go(){SC.auth({screen:'linkBad',why:'expired',type:'reset',uid:'104812'})},then(){SC.clk('[data-act=badLinkReset]');setTimeout(()=>SC.v('#femail','siti.aminah@coachco.sg'),10)}},
+ {g:G.u13,s:'Alt 13a',r:['NFR-08'],t:'New password under 12 characters',e:'A message says it must be at least 12 characters. The user enters another one.',go(){S.resets[0].status='sent';SC.auth({screen:'setpw',token:SC.link('reset','104812',false,'R-2')})},then(){SC.v('#np','siti2026');SC.sub('setpw')}},
+ {g:G.u13,s:'From a locked account',r:['NFR-09','FR-19'],t:'Locked user asks for a reset',e:'A locked user can request a reset straight away instead of waiting 15 minutes.',go(){user(AH).locked=true;SC.auth({screen:'locked',uid:AH})},then(){SC.clk('[data-act=lockedReset]')}},
 ];
 function runScenario(i){
   if(i<0||i>=SCN.length)return;
