@@ -231,6 +231,15 @@ table.rt{width:100%;border-collapse:collapse;font-size:14px}
 .scnbar .e{font-size:12px;color:var(--muted)}
 .scnbar .iconbtn{font-size:22px;flex:none}
 .scnbar .iconbtn:disabled{opacity:.3}
+.scnbar.talk{width:min(1000px,calc(100vw - 32px));align-items:flex-start;padding:10px 10px 10px 6px;z-index:65}
+.scnbar .hd{font-size:17px;line-height:1.3;margin-top:2px}
+.scnbar .sp{margin:2px 0 0;font-size:16px;line-height:1.45;color:var(--ink)}
+.scnbar .tbtns{display:grid;justify-items:center;gap:4px;flex:none}
+.scnbar .tbtns .link{font-size:12px;white-space:nowrap}
+.clock2{margin-left:auto;font-weight:600;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.clock2.over{color:var(--bad)}
+body.presenting .fab{display:none}
+body.presenting #toast-root{top:calc(70px + env(safe-area-inset-top,0px));bottom:auto}
 .frtag{display:inline-block;font:600 11px/1 var(--f-body);padding:3px 6px;border-radius:999px;border:1px solid var(--tag);background:var(--tag-soft);color:var(--tag);margin-left:4px;white-space:nowrap}
 .scnbar .lbl{font-weight:600;color:var(--ink-2);margin-left:4px}
 .wkl{list-style:none;padding:0;margin:4px 0 0;display:grid;gap:2px;font-size:13px;font-weight:400}
@@ -342,6 +351,8 @@ table.rt{width:100%;border-collapse:collapse;font-size:14px}
   .fab span{display:none}
   .scnbar{top:calc(6px + env(safe-area-inset-top,0px));bottom:auto;left:max(8px,env(safe-area-inset-left,0px));right:max(8px,env(safe-area-inset-right,0px));width:auto}
   .scnbar .e{display:none}
+  .scnbar .sp{font-size:14px}
+  .scnbar .hd{font-size:15px}
   #toast-root{bottom:auto;top:calc(10px + env(safe-area-inset-top,0px))}
   .mback{place-items:end stretch;padding:0}
   .modal{width:100%;max-height:92%;border-radius:16px 16px 0 0;padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -582,7 +593,7 @@ function auth(){
     <p class="muted small">No self sign-up. IT admin creates every account.</p>
     <div class="testbox"><div class="row"><span class="tag">Test accounts</span><span>Password for all: <b class="mono">${PW}</b></span></div>
       ${[['ahmad.faizal@coachco.sg','Ahmad Faizal','Staff · Coach Captain'],['rachel.goh@coachco.sg','Rachel Goh','Manager'],['kelvin.ong@coachco.sg','Kelvin Ong','IT Admin'],['priya.nair@coachco.sg','Priya Nair','Inactive account']].map(x=>`<div class="acct"><span><b>${x[1]}</b><br><span class="muted">${x[2]}</span></span><span class="mono small">${x[0]}</span><button class="btn sm" type="button" data-act="fill" data-id="${x[0]}">Use</button></div>`).join('')}
-      <button type="button" class="btn sm" data-act="scn" data-i="0">Present all ${SCN.length} scenarios</button></div>`;
+      <div class="row"><button type="button" class="btn sm primary" data-act="talkStart">Start talk (UC-01 to UC-13)</button><button type="button" class="btn sm" data-act="scn" data-i="0">Present all ${SCN.length} scenarios</button></div></div>`;
   } else if(a.screen==='twofa'){
     const u=user(a.uid);
     m=`<div><h1>Enter your code</h1><p class="muted">We sent a 6-digit code to ${esc(maskEmail(u.email))}. Managers and IT admins need this extra step because they can change rosters and accounts.</p></div>
@@ -926,7 +937,9 @@ function renderTest(){
   const root=$('#test-root'),unread=S.inbox.filter(m=>!m.seen).length;
   const fab=`<button class="fab ${S.session?'raised':''}" data-act="drawer" aria-label="Test tools">${icon('flask')}<span>Test tools</span>${unread?`<b class="badge">${unread}</b>`:''}</button>`;
   const sc=S.ui.scn!=null&&SCN[S.ui.scn];
-  const bar=sc?`<div class="scnbar" role="region" aria-label="Presenter"><button class="iconbtn" data-act="scnStep" data-d="-1" aria-label="Previous scenario" ${S.ui.scn===0?'disabled':''}>‹</button><div class="txt"><span class="small"><span class="tag">${S.ui.scn+1} / ${SCN.length}</span><span class="lbl">${sc.g.split(' ')[0]} · ${sc.s}</span>${sc.r.map(x=>`<span class="frtag">${x}</span>`).join('')}</span><b>${sc.t}</b><span class="e">${sc.e}</span></div><button class="iconbtn" data-act="scnStep" data-d="1" aria-label="Next scenario" ${S.ui.scn===SCN.length-1?'disabled':''}>›</button><button class="iconbtn" data-act="scnFind" aria-label="Find a scenario" title="Find (/)">${icon('search','sm')}</button><button class="iconbtn" data-act="scnStop" aria-label="Stop presenting">${icon('x','sm')}</button></div>`:'';
+  const tpos=S.ui.talk?TK.indexOf(S.ui.scn):-1;
+  const bar=!sc?'':S.ui.talk?`<div class="scnbar talk" role="region" aria-label="Presenter script"><button class="iconbtn" data-act="scnStep" data-d="-1" aria-label="Previous step" ${tpos===0?'disabled':''}>‹</button><div class="txt"><span class="small row" style="gap:4px"><span class="tag">Talk ${tpos>=0?tpos+1:'·'} / ${TK.length}</span><span class="lbl">${sc.g.split(' ')[0]} · ${sc.s}</span>${sc.r.map(x=>`<span class="frtag">${x}</span>`).join('')}<span class="clock2 ${talkSecs()>600?'over':''}" id="talk-clock">${talkClock()}</span></span><b class="hd">${sc.t}</b>${S.ui.noScript?'':`<p class="sp">${sc.sp||sc.e}</p>`}</div><div class="tbtns"><button class="iconbtn" data-act="scnStep" data-d="1" aria-label="Next step" ${tpos===TK.length-1?'disabled':''}>›</button><button class="link" data-act="toggleScript">${S.ui.noScript?'Show script':'Hide script'}</button><span class="row" style="gap:0"><button class="iconbtn" data-act="scnFind" aria-label="Find a scenario" title="Find (/)">${icon('search','sm')}</button><button class="iconbtn" data-act="scnStop" aria-label="Stop presenting">${icon('x','sm')}</button></span></div></div>`:`<div class="scnbar" role="region" aria-label="Presenter"><button class="iconbtn" data-act="scnStep" data-d="-1" aria-label="Previous scenario" ${S.ui.scn===0?'disabled':''}>‹</button><div class="txt"><span class="small"><span class="tag">${S.ui.scn+1} / ${SCN.length}</span><span class="lbl">${sc.g.split(' ')[0]} · ${sc.s}</span>${sc.r.map(x=>`<span class="frtag">${x}</span>`).join('')}</span><b>${sc.t}</b><span class="e">${sc.e}</span></div><button class="iconbtn" data-act="scnStep" data-d="1" aria-label="Next scenario" ${S.ui.scn===SCN.length-1?'disabled':''}>›</button><button class="iconbtn" data-act="scnFind" aria-label="Find a scenario" title="Find (/)">${icon('search','sm')}</button><button class="iconbtn" data-act="scnStop" aria-label="Stop presenting">${icon('x','sm')}</button></div>`;
+  document.body.classList.toggle('presenting',!!sc);
   if(!S.ui.drawer){root.innerHTML=fab+bar;return}
   const sw=(k,l,d)=>`<label class="switch"><span><b>${l}</b><br><span class="muted small">${d}</span></span><input type="checkbox" data-change="testToggle" data-k="${k}" ${S.test[k]?'checked':''}></label>`;
   const mails=S.inbox.length?S.inbox.map(m=>`<div class="mail ${m.seen?'':'new'}"><button data-act="openMail" data-id="${m.id}"><b>${esc(m.subject)}</b><span class="muted small">To ${esc(m.to)} · ${esc(m.time)}</span></button>${S.ui.openMail===m.id?`<div class="mail-b"><p>${esc(m.body)}</p>${m.link?`<button class="btn sm primary" data-act="openLink" data-t="${m.link.token}">${m.link.type==='activate'?'Activate account':'Reset password'}</button><span class="muted small">Opening a link signs you out, like opening the email on another phone.</span>`:''}</div>`:''}</div>`).join(''):'<p class="muted small">No emails yet. Activation links, reset links and maintenance notices land here.</p>';
@@ -937,7 +950,7 @@ function renderTest(){
    <input id="scq" type="search" autocomplete="off" placeholder="FR-13, NFR-09, UC-06, 6a, driving…" value="${esc(S.ui.scq||'')}" data-input="scnSearch" aria-label="Search scenarios by FR, NFR, use case, step or word">
    <div class="chips">${['FR-13','NFR-09','UC-06','Alt 6a','email'].map(x=>`<button type="button" class="chipbtn" data-act="scq" data-q="${x}">${x}</button>`).join('')}${S.ui.scq?'<button type="button" class="chipbtn" data-act="scq" data-q="">Clear</button>':''}</div>
    <div id="scn-res">${scnList()}</div>
-   <button class="btn primary" data-act="scn" data-i="${S.ui.scn!=null?S.ui.scn:0}">${S.ui.scn!=null?'Back to presenting':'Present all from #1'}</button></section>
+   <div class="row"><button class="btn primary" data-act="talkStart">Start talk: UC-01 to UC-13 (${TK.length} steps)</button><button class="btn" data-act="scn" data-i="${S.ui.scn!=null?S.ui.scn:0}">${S.ui.scn!=null?'Back to presenting':'Present all from #1'}</button></div></section>
   <section class="dsec"><h3>Inbox (${S.inbox.length})</h3>${mails}</section>
   <section class="dsec"><h3>Jump in as</h3><div class="row">${[['104233','Ahmad · Staff'],['200118','Rachel · Manager'],['300021','Kelvin · IT Admin']].map(x=>`<button class="btn sm" data-act="jump" data-uid="${x[0]}">${x[1]}</button>`).join('')}</div><span class="muted small">Skips the password. Use the real sign-in to test it.</span></section>
   <section class="dsec"><h3>Force a situation</h3>${sw('afterDeadline','Availability deadline has passed','Moves the staff clock to Thu 5 Nov, 00:01.')}${sw('emailFail','Email server is down','Activation, reset and maintenance emails fail.')}${sw('publishFail','Database snapshot fails','Publishing stops with "Publish failed, please try again".')}${sw('serverFail','System errors when saving','Tickets, preferences, coach, decisions and account status fail to save. Tickets also fail to load.')}${sw('linkExpired','Email links have expired','Any link you open shows the expired page.')}</section>
@@ -1048,8 +1061,10 @@ const ACT={
   timeout:()=>{const r=role();S.session=null;S.modal=null;S.ui.drawer=false;S.auth={screen:'login',tone:'warn',msg:r==='staff'?'Your session ended. Staff sessions end 24 hours after sign-in. Sign in again.':'Your session ended after 30 minutes with no activity. Sign in again.'};render()},
   autofill:()=>{const n=fillAll();S.ui.drawer=false;render();toast(`Filled ${n} empty slots. Sign in as Rachel and open Publish.`,'info')},
   scn:el=>runScenario(+el.dataset.i),
-  scnStep:el=>runScenario(S.ui.scn+(+el.dataset.d)),
-  scnStop:()=>{S.ui.scn=null;renderTest()},
+  scnStep:el=>stepScn(+el.dataset.d),
+  talkStart:()=>{S.ui.talk=true;S.ui.talkStart=Date.now();S.ui.noScript=false;runScenario(TK[0])},
+  toggleScript:()=>{S.ui.noScript=!S.ui.noScript;renderTest()},
+  scnStop:()=>{S.ui.scn=null;S.ui.talk=false;S.ui.talkStart=null;renderTest()},
   scnFind:()=>{S.ui.drawer=true;S.ui.focusFind=true;renderTest()},
   scq:el=>{S.ui.scq=el.dataset.q;S.ui.focusFind=true;renderTest()},
 
@@ -1353,9 +1368,138 @@ const SCN=[
 ];
 function runScenario(i){
   if(i<0||i>=SCN.length)return;
-  const sc=SCN[i],keepQ=S.ui.scq;S=seed();S.ui.scq=keepQ;sc.go();S.ui.scn=i;S.ui.drawer=false;render();window.scrollTo(0,0);
-  if(sc.then)setTimeout(()=>{sc.then();S.ui.scn=i;renderTest()},40);
+  $('#toast-root').innerHTML='';
+  const sc=SCN[i],keep={scq:S.ui.scq,talk:S.ui.talk,talkStart:S.ui.talkStart,noScript:S.ui.noScript};S=seed();Object.assign(S.ui,keep);sc.go();S.ui.scn=i;S.ui.drawer=false;render();window.scrollTo(0,0);
+  const unfocus=()=>{const a=document.activeElement;if(a&&a!==document.body&&!a.closest('.drawer'))a.blur()};
+  if(sc.then)setTimeout(()=>{sc.then();S.ui.scn=i;renderTest();setTimeout(unfocus,20)},40);else setTimeout(unfocus,20);
 }
+
+/* ---------- talk track: every use case step, in order, with a short line to read out ---------- */
+const TALK=[
+ ['Open the job form','UC-01, Create Job, FR-15. The manager clicks Create job.'],
+ ['Enter origin, destination and time','Pick an origin, a destination and a time. The system works out the breaks and the arrival time.'],
+ ['Job saved','Save. The job is added and confirmed.'],
+ ['Cancel before saving','Alternate flow 4a. Cancel throws the job away.'],
+ ['Required details missing','Alternate flow 4b. Missing details block the save.'],
+ ['Origin and destination are the same','The same origin and destination is blocked too.'],
+ ['Not a scheduled route','So is a route we do not run, like KL to Malacca.'],
+ ['Trip would end after midnight','And a trip that would end after midnight.'],
+ ['Choose a work week','UC-02, Submit Availability, FR-01. Staff pick a week up to 5 weeks ahead. Each has a Wednesday 23:59 deadline.'],
+ ['Add a time slot','They add time slots with a start and an end time.'],
+ ['Availability submitted','Every day needs a start location, FR-03. Submit, and the manager can see it.'],
+ ['Week more than 5 weeks ahead','Alternate flow 2a. Weeks more than 5 weeks ahead are not open yet.'],
+ ['Deadline has passed','After the deadline the week closes, so no jobs that week.'],
+ ['Week already submitted','Alternate flow 2b. A week that was already submitted opens in edit mode, which is UC-03.'],
+ ['Time slot overlaps another','Alternate flow 6a. Overlapping slots are rejected.'],
+ ['Time slot is invalid','So is an end time before the start time.'],
+ ['A day has no location','Alternate flow 6b. A day without a location blocks the submit.'],
+ ['Edit a submitted week','UC-03, Edit Availability. Staff change their submitted slots before the deadline.'],
+ ['Changes saved','Resubmit, and the new version replaces the old one.'],
+ ['Deadline passed: read only','Alternate flow 2a. After the deadline, it is read only.'],
+ ['Overlapping slot while editing','Alternate flow 6a. Overlaps are still rejected while editing.'],
+ ['Location removed while editing','Alternate flow 6b. And every day still needs a location.'],
+ ['Choose a week and preferences','UC-04, Job Preferences, FR-04. For each week: day or night shift, long or short routes, and days they would rather not work.'],
+ ['Preferences saved','Save, and the manager sees it when allocating.'],
+ ['Day without availability','Alternate flow 5a. They can only mark days they are available.'],
+ ['Preferences fail to save','Alternate flow 5b. If saving fails, an error asks them to try again.'],
+ ['Open an assigned job','UC-05, Reject a Job. Staff open an assigned job and press Reject.'],
+ ['Warning: talk to your manager first','A warning tells them to talk to their manager first, FR-05. They must tick the box.'],
+ ['Enter the reason','They enter a reason, which is required, FR-06.'],
+ ['Ticket created as Pending','The ticket is saved as Pending.'],
+ ['Manager is notified','And the manager is notified, FR-08.'],
+ ['Job is less than 7 days away','Alternate flow 2a. Jobs less than 7 days away cannot be rejected.'],
+ ['Cancel at the warning','Alternate flow 4a. Cancel at the warning, and no ticket is made.'],
+ ['Warning not acknowledged','Without ticking the box, they cannot continue.'],
+ ['No reason entered','Alternate flow 7a. No reason, no ticket.'],
+ ['Ticket fails to save','Alternate flow 8a. If saving fails, they see an error and can retry.'],
+ ['Job stays assigned while the ticket is pending','Until the manager decides, they stay on the job.'],
+ ['One work week at a time','UC-06, Allocate Jobs. The manager plans one week at a time, FR-09.'],
+ ['Staff who missed the deadline are left out','Staff who missed the deadline are left out, FR-10.'],
+ ['Pick a job and see available staff','Pick a job. Free staff are sorted by lowest workload, and the top 3 are suggested.'],
+ ['View up to 3 staff side by side','Compare up to 3 staff, FR-11, with daily availability, location, hours and preferences, FR-12.'],
+ ['Assign a staff member to the job','Assign a captain.'],
+ ['Save the allocation','Save. Allocated hours update.'],
+ ['No staff available for the week','Alternate flow 3a. If nobody submitted, no staff are available.'],
+ ['View a 4th staff member','Alternate flow 6a. A fourth person cannot be added to the comparison.'],
+ ['Save blocked: driving limit','Alternate flow 9a, FR-13. A captain driving over 2 hours without a 30-minute break blocks the save.'],
+ ['Driving rule flagged in the list','The list warns about this before saving.'],
+ ['Staff who are not free are blocked','Staff who are not free show a grey badge with the reason.'],
+ ['Staff starts the day somewhere else','And we flag staff who start the day in another city.'],
+ ['Jobs show whether they have a coach','UC-07, Assign Coach, FR-18. Each job shows whether it has a coach.'],
+ ['Pick a coach by registration number','Search or pick a coach by registration number.'],
+ ['Coach assigned','Confirm. The job and the coach number are shown.'],
+ ['Staff see the coach number','Staff see the coach number on their home page.'],
+ ['No jobs in the week','Alternate flow 2a. No jobs this week, so nothing to assign.'],
+ ['Job already has a coach','Alternate flow 3a. If it already has a coach, we ask before replacing it.'],
+ ['Replace the coach','Confirm, then pick the new coach.'],
+ ['No coaches recorded','Alternate flow 4a. No coaches recorded, so no assignment.'],
+ ['Registration number not found','Alternate flow 5a. Unknown registration numbers are rejected.'],
+ ['Wrong registration format','Wrong formats too.'],
+ ['Coach is busy at that time','And coaches already busy at that time.'],
+ ['Assignment fails to save','Alternate flow 7a. If saving fails, the manager can retry.'],
+ ['Request to publish','UC-08, Publish Roster, FR-16. Press Publish and confirm.'],
+ ['Roster published successfully','A database snapshot is taken first, NFR-07, then the roster is published.'],
+ ['Staff see their jobs','Staff are notified and see their jobs and monthly hours, FR-02.'],
+ ['Cannot publish: incomplete jobs','Alternate flow 2a, FR-14. Jobs missing a captain or cabin crew block publishing.'],
+ ['Database snapshot fails','Alternate flow 3a. If the snapshot fails, nothing is published.'],
+ ['Open a pending ticket','UC-09, Process Ticket, FR-17. The manager opens a pending ticket.'],
+ ['Ticket fails to load','Alternate flow 3a. If it fails to load, we go back to the list.'],
+ ['Choose a decision and enter a reason','Pick approve, reject or close, and give a reason.'],
+ ['No reason entered','Alternate flow 5a. A reason is required.'],
+ ['Approve: job needs a replacement','Alternate flow 6a. Approve takes them off the job, and they are notified, FR-07.'],
+ ['Manager sees the job to reallocate','That job now shows as needing a replacement.'],
+ ['Reject: staff stays on the job','Alternate flow 6b. Reject keeps them on the job.'],
+ ['Close the ticket','Alternate flow 6c. Close ends it with no change.'],
+ ['Decision fails to save','Alternate flow 6d. If saving fails, the manager retries.'],
+ ['Decision on the staff landing page','Staff see the decision and the reason on their home page.'],
+ ['Fill in the account form','UC-10, Create Account, FR-21. IT admin fills in ID, name, email, mobile, role, start date and status.'],
+ ['Account created','Create. The account gets that role\'s access.'],
+ ['Send the invitation link','Send the invitation link, FR-24. It lasts 72 hours, NFR-12.'],
+ ['New user opens the link','The new user opens the link.'],
+ ['Password saved, account ready','They set a password of at least 12 characters, FR-26 and NFR-08. Done.'],
+ ['Missing fields','Alternate flow 5a. Missing fields are flagged.'],
+ ['Employee ID is not 6 digits','Alternate flow 5b. The ID must be 6 digits.'],
+ ['Employee ID is already used','And unique.'],
+ ['Email already used, wrong mobile','Emails must be unique, and mobile numbers valid.'],
+ ['Invitation email fails','Alternate flow 9a. If the email fails, IT admin retries.'],
+ ['Invitation link has expired','Alternate flow 11a. An expired invitation shows a message.'],
+ ['Password under 12 characters','Alternate flow 13a. Passwords under 12 characters are rejected.'],
+ ['Not activated yet, cannot sign in','Until then, the account cannot sign in.'],
+ ['Search by Employee ID','UC-11, Deactivate Account, FR-22. IT admin searches by Employee ID.'],
+ ['Account details','They open the account to see every field.'],
+ ['Set to inactive and save','Set it to inactive and save. It is never deleted, NFR-16.'],
+ ['No account found','Alternate flow 2a. Unknown IDs show an error.'],
+ ['New status fails to save','Alternate flow 5a. If saving fails, they retry.'],
+ ['Propose a maintenance window','UC-12, Maintenance, FR-27. IT admin picks a Tuesday, 2 to 4 am.'],
+ ['Confirm the schedule','They confirm the schedule.'],
+ ['Maintenance saved, all users emailed','Every user is emailed at least 48 hours ahead, NFR-03.'],
+ ['The email states the date and time','The email states the date and time, FR-28.'],
+ ['Not a Tuesday','Alternate flow 4a. Other days are rejected, NFR-02.'],
+ ['Outside 02:00–04:00','So are times outside 2 to 4 am.'],
+ ['Less than 48 hours away','Alternate flow 4b. Anything less than 48 hours away is rejected.'],
+ ['Users see the notice on sign-in','Users also see the notice when they sign in.'],
+ ['Forgot password: enter company email','UC-13, Change Password, FR-19. The user enters their company email.'],
+ ['Request submitted','The request is sent, and IT admins are notified, FR-23.'],
+ ['IT admin is notified','It shows up on the IT admin page.'],
+ ['Send the reset link','IT admin sends a reset link, FR-20. It lasts 30 minutes, NFR-11.'],
+ ['Open the link and enter a new password','The user opens the link and enters a new password.'],
+ ['New password saved','Saved. They can sign in again, FR-25.'],
+ ['Invalid company email','Alternate flow 4a. An invalid email is rejected.'],
+ ['Reset email fails to send','Alternate flow 9a. If the email fails, IT admin retries.'],
+ ['Reset link has expired','Alternate flow 10a. Expired links show a message.'],
+ ['Ask for a new reset link','They can request a new one.'],
+ ['New password under 12 characters','Alternate flow 13a. Passwords under 12 characters are rejected.'],
+ ['Locked user asks for a reset','And a locked user can reset straight away, NFR-09. That is our walkthrough. Thank you.'],
+];
+const TK=SCN.map((x,i)=>i).filter(i=>SCN[i].g.startsWith('UC-'));
+TK.forEach((i,k)=>{const row=TALK[k];if(!row||row[0]!==SCN[i].t)console.error('Talk script out of order at step '+(k+1)+': '+SCN[i].t);SCN[i].sp=row?row[1]:SCN[i].e});
+function stepScn(d){
+  if(S.ui.talk){const pos=TK.indexOf(S.ui.scn);let n;if(pos>=0)n=TK[pos+d];else n=d>0?TK.find(x=>x>S.ui.scn):[...TK].reverse().find(x=>x<S.ui.scn);if(n!=null)runScenario(n);return}
+  const n=S.ui.scn+d;if(n>=0&&n<SCN.length)runScenario(n);
+}
+function talkSecs(){return S.ui.talkStart?Math.floor((Date.now()-S.ui.talkStart)/1000):0}
+function talkClock(){const s=talkSecs();return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')} / 10:00`}
+setInterval(()=>{const el=document.getElementById('talk-clock');if(el&&S.ui.talkStart){el.textContent=talkClock();el.classList.toggle('over',talkSecs()>600)}},1000);
 
 /* ---------- wiring ---------- */
 document.addEventListener('click',e=>{
@@ -1369,7 +1513,7 @@ document.addEventListener('click',e=>{
 document.addEventListener('submit',e=>{const f=e.target;if(!f.dataset.form)return;e.preventDefault();FORMS[f.dataset.form](f,new FormData(f))});
 document.addEventListener('change',e=>{const el=e.target.closest('[data-change]');if(el&&CHANGES[el.dataset.change])CHANGES[el.dataset.change](el,e)});
 document.addEventListener('input',e=>{const el=e.target.closest('[data-input]');if(el&&INPUTS[el.dataset.input])INPUTS[el.dataset.input](el,e)});
-document.addEventListener('keydown',e=>{if(e.key==='/'&&!e.target.closest('input,textarea,select')){e.preventDefault();S.ui.drawer=true;S.ui.focusFind=true;renderTest();return}if(e.key==='Enter'&&e.target.id==='scq'){const b=$('#scn-res .scn-item');if(b)b.click();return}if(S.ui.scn!=null&&(e.key==='ArrowRight'||e.key==='ArrowLeft')&&!e.target.closest('input,textarea,select')){const d=e.key==='ArrowRight'?1:-1,n=S.ui.scn+d;if(n>=0&&n<SCN.length)runScenario(n);return}if(e.key!=='Escape')return;if(S.modal){closeModal()}else if(S.ui.drawer){S.ui.drawer=false;renderTest()}else if(S.ui.pop){S.ui.pop=null;render()}});
+document.addEventListener('keydown',e=>{if(S.ui.scn!=null&&!e.target.closest('input,textarea,select')&&[' ','PageDown','PageUp'].includes(e.key)){e.preventDefault();stepScn(e.key==='PageUp'||(e.key===' '&&e.shiftKey)?-1:1);return}if(e.key==='/'&&!e.target.closest('input,textarea,select')){e.preventDefault();S.ui.drawer=true;S.ui.focusFind=true;renderTest();return}if(e.key==='Enter'&&e.target.id==='scq'){const b=$('#scn-res .scn-item');if(b)b.click();return}if(S.ui.scn!=null&&(e.key==='ArrowRight'||e.key==='ArrowLeft')&&!e.target.closest('input,textarea,select')){stepScn(e.key==='ArrowRight'?1:-1);return}if(e.key!=='Escape')return;if(S.modal){closeModal()}else if(S.ui.drawer){S.ui.drawer=false;renderTest()}else if(S.ui.pop){S.ui.pop=null;render()}});
 render();
 </script>
 </body>
