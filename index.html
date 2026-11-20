@@ -695,7 +695,7 @@ function vAvail(){
   else if(st==='closed-sub')head=bnr('info',`<b>The deadline has passed</b> (${fmtD(dl)}, 23:59), so this week is read only. This is what you sent.`);
   else if(st==='closed-missed')head=bnr('bad',`<b>You missed the deadline</b> (${fmtD(dl)}, 23:59). You won't be given jobs this week. Speak to your manager if you can still work.`);
   else if(st==='open'){ed=true;head=bnr(dl===n.date?'warn':'info',`Submit by <b>${fmtD(dl)}, 23:59</b>${dl===n.date?' (today)':''}. Your manager only sees it after you submit.`)}
-  else{ed=true;head=a.dirty?bnr('warn',`You changed this week after sending it. <b>Resubmit</b> before ${fmtD(dl)}, 23:59 so your manager sees the changes.`):bnr('ok',`<b>You already submitted this week</b> (${esc(a.submittedAt)}), so you are now editing it. Change anything, then resubmit before ${fmtD(dl)}, 23:59.`)}
+  else{ed=true;head=a.dirty?bnr('warn',`You changed this week after sending it. <b>Resubmit</b> before ${fmtD(dl)}, 23:59 so your manager sees the changes.`):S.ui.justSub===wk?bnr('ok',`<b>Submitted ${esc(a.submittedAt)}.</b> Your manager can now see it. You can still edit it until ${fmtD(dl)}, 23:59.`):bnr('ok',`<b>You already submitted this week</b> (${esc(a.submittedAt)}), so you are now editing it. Change anything, then resubmit before ${fmtD(dl)}, 23:59.`)}
   const days=Object.values(a.days);const nSlots=days.reduce((t,d)=>t+d.slots.length,0);const nDays=days.filter(d=>d.slots.length).length;
   const grid=st==='locked'?'':`<div class="days">${weekDays(wk).map(iso=>dayCard(iso,a,ed)).join('')}</div>`;
   const foot=ed?`<div class="actionbar"><span class="muted small">${nSlots} time slot${nSlots===1?'':'s'} on ${nDays} day${nDays===1?'':'s'}</span><div class="row">${st==='open'?`<button class="btn ghost" data-act="saveDraft">Save draft</button>`:''}<button class="btn primary" data-act="submitAvail" ${st==='submitted'&&!a.dirty?'disabled':''}>${st==='submitted'?(a.dirty?'Resubmit changes':'Submitted'):'Submit availability'}</button></div></div>`:'';
@@ -981,7 +981,7 @@ const ACT={
   closeModal:()=>closeModal(),
   backdrop:(el,e)=>{if(e.target===el)closeModal()},
   /* staff */
-  week:el=>{S.ui.week=el.dataset.m;S.ui.dayErr={};render()},
+  week:el=>{S.ui.week=el.dataset.m;S.ui.dayErr={};S.ui.justSub=null;render()},
   addSlot:el=>openModal({type:'slot',day:el.dataset.day}),
   rmSlot:el=>{const a=curWeekAvail(),d=a.days[el.dataset.day],s=d.slots.splice(+el.dataset.i,1)[0];if(a.submitted)a.dirty=true;render();toast(`Removed ${s.s}–${s.e} on ${fmtD(el.dataset.day)}.`,'info')},
   saveDraft:()=>toast(`Draft saved. It is not sent until you press Submit (by ${fmtD(deadlineOf(S.ui.week))}, 23:59).`,'info'),
@@ -992,7 +992,7 @@ const ACT={
     if(!n){toast('Add at least one time slot before you submit.','bad');return}
     const errs={};ent.forEach(([iso,d])=>{if(d.slots.length&&!d.loc)errs[iso]='Pick where you start this day.'});
     if(Object.keys(errs).length){S.ui.dayErr=errs;render();toast(`Pick a start location for ${joinAnd(Object.keys(errs).sort().map(fmtD))}.`,'bad');return}
-    const re=a.submitted;a.submitted=true;a.dirty=false;a.submittedAt=stamp();S.ui.dayErr={};render();toast(`Availability for ${weekLabel(wk)} ${re?'resubmitted':'submitted'}. Your manager can now see it.`);
+    const re=a.submitted;a.submitted=true;a.dirty=false;a.submittedAt=stamp();S.ui.dayErr={};S.ui.justSub=wk;render();toast(`Availability for ${weekLabel(wk)} ${re?'resubmitted':'submitted'}. Your manager can now see it.`);
   },
   openJob:el=>openModal({type:'sjob',id:el.dataset.id,step:0}),
   rejStart:()=>{const j=findJob(S.modal.id);S.modal.step=dayDiff(NOW().date,j.date)<7?'blocked':1;renderModal()},
@@ -1032,7 +1032,7 @@ const ACT={
     if(S.test.emailFail){openModal({type:'msg',tone:'bad',title:'Email not sent',text:`The mail server did not respond, so ${esc(u.name)} did not get the invitation. The account is still waiting for activation.`,retry:'sendAct',attrs:`data-uid="${u.id}"`});return}
     S.inbox.forEach(m=>{if(m.link&&m.link.uid===u.id&&m.link.type==='activate')m.link.used=true});
     mail(u.email,'You are invited to CoachRoster',`Hi ${u.name.split(' ')[0]}, IT admin made a CoachRoster account for you (Employee ID ${u.id}). Open this link to set your password and activate your account. The link works for 72 hours.`,{type:'activate',uid:u.id,token:token(),used:false});
-    u.actSent=stamp();S.modal=null;render();toast(`Invitation sent to ${esc(u.email)}. Open it from Test tools → Inbox.`);
+    u.actSent=stamp();S.modal=null;render();toast(`Invitation sent to ${esc(u.email)}. The link works for 72 hours.`);
   },
   sendReset:el=>{
     const r=S.resets.find(x=>x.id===el.dataset.id),u=user(r.uid);
